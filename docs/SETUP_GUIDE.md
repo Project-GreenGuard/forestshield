@@ -1,157 +1,28 @@
-# ForestShield - Complete Setup Guide
+# ForestShield - Development Setup Guide
+
+This guide covers local development setup for running the ForestShield applications on your machine.
 
 ## Prerequisites
 
 ### Required Software
-- **AWS CLI**: Configured with hackathon profile
-- **Terraform**: >= 1.0
-- **Docker & Docker Compose**: For local development
-- **Node.js**: >= 16 (for frontend)
-- **Arduino IDE**: For ESP32 firmware
+
+- **Node.js**: >= 16.x (for frontend development)
+- **Python**: >= 3.9 (for backend Lambda functions)
+- **Docker & Docker Compose**: >= 2.0 (for local backend services)
 - **Git**: For version control
 
-### AWS Setup
-```bash
-# Configure AWS CLI with hackathon profile
-aws configure --profile hackathon
+## Local Development Setup
 
-# Verify
-aws sts get-caller-identity --profile hackathon
-```
+### 1. Backend Development
 
-## Step 1: Create GitHub Repositories
+The backend uses Docker Compose to run local services including DynamoDB Local and Mosquitto MQTT broker.
 
-Create these repositories in **Project GreenGuard** organization:
-
-1. `forestshield-iot-firmware`
-2. `forestshield-backend`
-3. `forestshield-frontend`
-4. `forestshield-infrastructure`
-5. `forestshield` (optional - docs)
-
-**GitHub**: https://github.com/organizations/Project-GreenGuard/repositories/new
-
-## Step 2: Set Up Local Workspace
-
-```bash
-# Create project folder
-mkdir -p ~/Documents/Projects/Project-GreenGuard
-cd ~/Documents/Projects/Project-GreenGuard
-
-# Clone repositories (after creating on GitHub)
-git clone https://github.com/Project-GreenGuard/forestshield-iot-firmware.git
-git clone https://github.com/Project-GreenGuard/forestshield-backend.git
-git clone https://github.com/Project-GreenGuard/forestshield-frontend.git
-git clone https://github.com/Project-GreenGuard/forestshield-infrastructure.git
-git clone https://github.com/Project-GreenGuard/forestshield.git
-```
-
-## Step 3: Deploy Infrastructure
-
-### 3.1 Package Lambda Functions
+#### Start Local Services
 
 ```bash
 cd forestshield-backend
 
-# Package process_sensor_data Lambda
-cd lambda-processing
-zip -r ../../forestshield-infrastructure/lambda-processing.zip . \
-  -x "*.pyc" "__pycache__/*" "*.zip"
-
-# Package api_handler Lambda
-cd ../api-gateway-lambda
-zip -r ../../forestshield-infrastructure/api-gateway-lambda.zip . \
-  -x "*.pyc" "__pycache__/*" "*.zip"
-```
-
-### 3.2 Deploy with Terraform
-
-```bash
-cd ../forestshield-infrastructure
-
-# Initialize Terraform
-terraform init
-
-# Review plan
-terraform plan
-
-# Deploy
-terraform apply
-```
-
-**Note outputs:**
-- `iot_endpoint_address` - For ESP32 configuration
-- `api_endpoint` - For frontend configuration
-- `dynamodb_table_name` - Table name
-
-## Step 4: Configure IoT Firmware
-
-### 4.1 Get IoT Core Endpoint
-
-From Terraform output:
-```bash
-cd forestshield-infrastructure
-terraform output iot_endpoint_address
-```
-
-### 4.2 Set Up Device in AWS IoT Core
-
-1. Go to AWS IoT Core Console
-2. Create Thing: `esp32-01`
-3. Create certificate and keys
-4. Download:
-   - Device certificate
-   - Private key
-   - Root CA (Amazon Root CA 1)
-
-### 4.3 Configure ESP32 Firmware
-
-```bash
-cd forestshield-iot-firmware
-```
-
-Edit `esp32_wildfire_sensor.ino`:
-
-1. **WiFi Credentials:**
-   ```cpp
-   const char* ssid = "YOUR_WIFI_SSID";
-   const char* password = "YOUR_WIFI_PASSWORD";
-   ```
-
-2. **AWS IoT Core:**
-   ```cpp
-   const char* aws_iot_endpoint = "YOUR_ENDPOINT.iot.us-east-1.amazonaws.com";
-   ```
-
-3. **Device Info:**
-   ```cpp
-   const char* deviceId = "esp32-01";  // Must match IoT Thing name
-   const float sensorLat = 43.467;     // Your GPS coordinates
-   const float sensorLng = -79.699;
-   ```
-
-4. **Certificates:**
-   - Replace `device_cert` with your certificate
-   - Replace `device_key` with your private key
-   - Update `root_ca` if needed
-
-### 4.4 Upload to ESP32
-
-1. Open `esp32_wildfire_sensor.ino` in Arduino IDE
-2. Install libraries:
-   - ArduinoJson
-   - DHT sensor library
-   - PubSubClient
-3. Select board: **ESP32 Dev Module**
-4. Select port
-5. Upload
-
-## Step 5: Local Backend Development
-
-```bash
-cd forestshield-backend
-
-# Start local services
+# Start all services (API server, DynamoDB Local, Mosquitto)
 docker-compose up -d
 
 # View logs
@@ -161,39 +32,13 @@ docker-compose logs -f
 docker-compose down
 ```
 
-**Services:**
-- API: http://localhost:5000
-- DynamoDB Local: http://localhost:8000
-- MQTT: mqtt://localhost:1883
+#### Available Services
 
-## Step 6: Frontend Development
+- **API Server**: http://localhost:5000
+- **DynamoDB Local**: http://localhost:8000
+- **MQTT Broker**: mqtt://localhost:1883
 
-```bash
-cd forestshield-frontend
-
-# Install dependencies
-npm install
-
-# Create .env file
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
-
-# Start development server
-npm start
-```
-
-Frontend runs at: http://localhost:3000
-
-## Step 7: Testing
-
-### Test IoT Sensor
-
-Monitor serial output (115200 baud):
-- WiFi connection
-- AWS IoT Core connection
-- Sensor readings
-- MQTT publishing
-
-### Test Backend API
+#### Test API Endpoints
 
 ```bash
 # Get all sensors
@@ -202,67 +47,194 @@ curl http://localhost:5000/api/sensors
 # Get specific sensor
 curl http://localhost:5000/api/sensor/esp32-01
 
-# Get risk map
+# Get risk map data
 curl http://localhost:5000/api/risk-map
 ```
 
-### Test Frontend
+#### Local Development Environment
 
-1. Open http://localhost:3000
-2. Verify map loads
-3. Check sensor data displays
-4. Test API integration
+The local API server (`local_dashboard.py`) provides the same endpoints as the production API Gateway, but connects to DynamoDB Local instead of AWS DynamoDB.
 
-## Step 8: Production Configuration
+**Environment Variables:**
 
-### Frontend
+- `AWS_ENDPOINT_URL=http://dynamodb:8000` - DynamoDB Local endpoint
+- `AWS_ACCESS_KEY_ID=local`
+- `AWS_SECRET_ACCESS_KEY=local`
 
-Update `.env`:
-```env
-REACT_APP_API_URL=https://YOUR_API_GATEWAY_URL/api
-```
+### 2. Frontend Development
 
-Build:
+The frontend is a React Progressive Web Application that can run independently with mock data or connect to the local backend.
+
+#### Setup and Run
+
 ```bash
-npm run build
+cd forestshield-frontend
+
+# Install dependencies (first time only)
+npm install
+
+# Create .env file for local development
+echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
+
+# Start development server
+npm start
 ```
 
-### Backend
+The frontend will automatically open at: **http://localhost:3000**
 
-Lambda functions are deployed via Terraform.
+#### Frontend Features
+
+- Real-time sensor data visualization
+- Interactive map with Leaflet
+- Risk heatmap overlay (when connected to backend)
+- Responsive design
+
+#### Development Notes
+
+- The frontend uses mock data by default if the backend is not available
+- Hot reload is enabled - changes automatically refresh in the browser
+- API polling interval: 10 seconds for sensor data, 30 seconds for risk map
+
+### 3. IoT Firmware Development
+
+For testing without physical hardware, use the mock sensor script.
+
+#### Mock Sensor (Python)
+
+```bash
+cd forestshield-iot-firmware
+
+# Run mock sensor (publishes to local MQTT broker)
+python mock_sensor.py
+```
+
+The mock sensor simulates ESP32 sensor data and publishes to the local Mosquitto MQTT broker.
+
+#### ESP32 Firmware (Arduino)
+
+For actual hardware development:
+
+1. Open `esp32_wildfire_sensor.ino` in Arduino IDE
+2. Install required libraries:
+   - ArduinoJson
+   - DHT sensor library (Adafruit)
+   - Adafruit Unified Sensor
+   - PubSubClient
+3. Configure WiFi credentials and device settings
+4. Upload to ESP32 device
+
+**Note:** For AWS IoT Core integration, see the infrastructure repository documentation.
+
+## Development Workflow
+
+### Typical Development Session
+
+1. **Start Backend Services:**
+
+   ```bash
+   cd forestshield-backend
+   docker-compose up -d
+   ```
+
+2. **Start Frontend:**
+
+   ```bash
+   cd forestshield-frontend
+   npm start
+   ```
+
+3. **Optional - Run Mock Sensor:**
+
+   ```bash
+   cd forestshield-iot-firmware
+   python mock_sensor.py
+   ```
+
+4. **Access Applications:**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000/api
+
+### Testing Changes
+
+- **Frontend:** Changes automatically reload via React hot reload
+- **Backend:** Restart Docker containers to apply changes:
+  ```bash
+  docker-compose restart
+  ```
 
 ## Troubleshooting
 
-### IoT Connection Issues
-- Verify WiFi credentials
-- Check AWS IoT Core endpoint
-- Ensure certificates are correctly formatted
-- Monitor serial output
+### Backend Issues
 
-### Lambda Errors
-- Check CloudWatch logs
-- Verify DynamoDB table exists
-- Ensure IAM permissions are correct
+**Docker services won't start:**
 
-### API Gateway Issues
-- Verify Lambda function names match Terraform
-- Check CORS headers
-- Review API Gateway logs
+- Ensure Docker Desktop is running
+- Check if ports 5000, 8000, 1883 are already in use
+- Review logs: `docker-compose logs`
 
-### Terraform Issues
-- Ensure Lambda zip files are in `forestshield-infrastructure/`
-- Verify AWS credentials
-- Check IAM permissions
+**API endpoints not responding:**
+
+- Verify services are running: `docker-compose ps`
+- Check API server logs: `docker-compose logs api`
+- Ensure DynamoDB Local is accessible
+
+### Frontend Issues
+
+**Dependencies installation fails:**
+
+- Clear node_modules and reinstall: `rm -rf node_modules && npm install`
+- Check Node.js version: `node --version` (should be >= 16)
+
+**API connection errors:**
+
+- Verify backend is running on port 5000
+- Check `.env` file has correct API URL
+- Review browser console for CORS errors
+
+**Port 3000 already in use:**
+
+- Stop other React apps or change port: `PORT=3001 npm start`
+
+### Mock Sensor Issues
+
+**Python dependencies missing:**
+
+- Install required packages: `pip install paho-mqtt`
+
+**MQTT connection fails:**
+
+- Ensure Mosquitto is running: `docker-compose ps`
+- Check MQTT broker is accessible on port 1883
+
+## Project Structure
+
+```
+forestshield-backend/
+├── api-gateway-lambda/     # API handler Lambda function
+├── lambda-processing/      # Sensor data processing Lambda
+├── docker-compose.yml      # Local services configuration
+└── local_dashboard.py     # Local API server
+
+forestshield-frontend/
+├── src/
+│   ├── components/         # React components
+│   ├── App.js             # Main app component
+│   └── index.js           # Entry point
+├── public/                # Static assets
+└── package.json          # Dependencies
+
+forestshield-iot-firmware/
+├── esp32_wildfire_sensor.ino  # ESP32 firmware
+└── mock_sensor.py            # Mock sensor for testing
+```
 
 ## Next Steps
 
-1. Set up branch protection on GitHub
-2. Configure team access
-3. Set up CI/CD (GitHub Actions)
-4. Continue development on individual components
+- Review [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) for detailed development workflows
+- Check [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for API endpoint details
+- See [ARCHITECTURE.md](./ARCHITECTURE.md) for system architecture overview
 
 ---
 
 **Setup Version**: 1.0  
 **Last Updated**: Current Semester
-
