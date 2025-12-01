@@ -1,6 +1,6 @@
 # ForestShield - Documentation Index
 
-## 📚 Complete Documentation Set
+## Complete Documentation Set
 
 This folder contains comprehensive documentation for the ForestShield project. Copy all these files to your new project folder.
 

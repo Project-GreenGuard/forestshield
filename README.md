@@ -82,7 +82,7 @@ npm start
 
 ## Risk Scoring
 
-Simple rule-based algorithm:
+Rule-based algorithm:
 
 ```
 riskScore = w1 * temp_score + w2 * humidity_score + w3 * fire_score

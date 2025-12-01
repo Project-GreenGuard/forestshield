@@ -493,7 +493,7 @@ Sensor Data + Fire Data → Risk Calculation → DynamoDB Storage → API Query 
 
 **Fire Proximity:** The calculated distance in kilometers between a sensor location and the nearest active fire detection point.
 
-**Risk Score:** A numerical value on a scale of 0-100 representing the calculated wildfire risk level based on environmental conditions and fire proximity. Higher scores indicate increased risk.
+**Risk Score:** A numerical value on a scale of 0-100 representing the calculated wildfire risk score based on environmental conditions and fire proximity. Higher scores indicate increased risk.
 
 **Temperature:** Environmental temperature reading in degrees Celsius collected by sensor device.
 
