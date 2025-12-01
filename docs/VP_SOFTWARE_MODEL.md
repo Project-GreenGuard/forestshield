@@ -211,38 +211,39 @@ System operators access the web dashboard to view real-time environmental data f
 **Main Flow:**
 
 1. Lambda function receives sensor data with location coordinates
-2. Lambda function formats NASA FIRMS API request with country code parameter (e.g., "CAN")
-3. Lambda function sends HTTP GET request to NASA FIRMS API endpoint
-4. NASA FIRMS API returns CSV response containing active fire detection points
-5. Lambda function parses CSV response and extracts fire detection coordinates
-6. Lambda function calculates distance from sensor location to each fire detection point
-7. Lambda function identifies nearest fire detection point
-8. Lambda function calculates distance in kilometers to nearest fire
-9. Fire proximity data is stored with sensor data for risk calculation
+2. Lambda function constructs bounding box around sensor location (±0.5° radius)
+3. Lambda function formats NASA FIRMS API request with bounding box and current date
+4. Lambda function sends HTTP GET request to NASA FIRMS API endpoint
+5. NASA FIRMS API returns JSON array of active fire detection points
+6. Lambda function parses response and extracts fire detection coordinates
+7. Lambda function calculates distance from sensor location to each fire detection point
+8. Lambda function identifies nearest fire detection point
+9. Lambda function calculates distance in kilometers to nearest fire
+10. Fire proximity data is stored with sensor data for risk calculation
 
 **Alternate Flow 4a: No Active Fires Detected**
-4a.1. NASA FIRMS API returns empty CSV response or no fire detection records (no active fires in country)
-4a.2. Lambda function sets nearestFireDistance to maximum default value (100km) or -1 if no fire data is available
+4a.1. NASA FIRMS API returns empty array (no active fires in bounding box)
+4a.2. Lambda function sets nearestFireKm to maximum default value (100km)
 4a.3. Fire proximity score defaults to minimum value
 4a.4. Risk calculation proceeds with sensor-only data
 
 **Exceptional Flow 4b: NASA FIRMS API Unavailable**
 4b.1. HTTP request to NASA FIRMS API fails or times out
 4b.2. Lambda function catches exception and logs error to CloudWatch
-4b.3. Lambda function sets nearestFireDistance to default value (100km) or -1 if API is unavailable
+4b.3. Lambda function sets nearestFireKm to default value (100km)
 4b.4. Risk calculation proceeds using only temperature and humidity factors
 4b.5. System continues processing without blocking
 
 **Exceptional Flow 5a: Invalid API Response Format**
-5a.1. NASA FIRMS API returns malformed CSV or unexpected data structure
+5a.1. NASA FIRMS API returns malformed JSON or unexpected data structure
 5a.2. Lambda function catches parsing exception
-5a.3. Lambda function logs error and sets nearestFireDistance to default value
+5a.3. Lambda function logs error and sets nearestFireKm to default value
 5a.4. Risk calculation proceeds with sensor-only data
 
 **Exceptional Flow 4c: API Rate Limit Exceeded**
 4c.1. NASA FIRMS API returns HTTP 429 (Too Many Requests) status code
 4c.2. Lambda function logs rate limit warning to CloudWatch
-4c.3. Lambda function sets nearestFireDistance to default value
+4c.3. Lambda function sets nearestFireKm to default value
 4c.4. Risk calculation proceeds with sensor-only data
 4c.5. Subsequent requests will respect 15-minute interval per sensor
 
@@ -498,7 +499,7 @@ Sensor Data + Fire Data → Risk Calculation → DynamoDB Storage → API Query 
 
 **Humidity:** Relative humidity percentage collected by sensor device. Lower humidity values indicate drier conditions associated with increased fire risk.
 
-**Bounding Box:** A geographic area defined by minimum and maximum latitude and longitude coordinates. Note: The current implementation uses country-based API queries rather than bounding box queries, but the bounding box concept remains relevant for spatial calculations and future enhancements.
+**Bounding Box:** A geographic area defined by minimum and maximum latitude and longitude coordinates used to query NASA FIRMS API for active fire detections within a region surrounding a sensor location.
 
 **Dashboard:** A web-based user interface that displays real-time sensor data, active fire locations, and risk assessments through interactive map and data panel components.
 
@@ -959,18 +960,6 @@ The Software System Architecture consists of the following subsystems:
 + toTerraformHCL(): String
 ```
 
-### 3.3.1 Design Model Implementation Note
-
-The subsystem class diagrams represent logical design structure using Boundary-Control-Entity (BCE) pattern. The actual implementation uses functional/procedural programming paradigm in Python Lambda functions rather than object-oriented classes. The logical responsibilities described in the class diagrams are realized through function-based implementations:
-
-- Boundary classes map to input/output handling functions
-- Control classes map to workflow coordination functions
-- Entity classes map to data structures (dictionaries, objects)
-
-This design-to-implementation mapping maintains the same logical separation of concerns while using a functional programming approach suitable for serverless Lambda functions.
-
----
-
 ### 3.4 Subsystem Interfaces
 
 **Interface: IoT Ingestion ↔ Risk Engine**
@@ -1104,7 +1093,7 @@ SensorDataProcessor -> FireDataIntegrator: integrateFireData(sensorLocation)
 FireDataIntegrator -> FireDataIntegrator: Calculate BoundingBox
 FireDataIntegrator -> NASAFIRMSAPIClient: queryActiveFires(bbox, date)
 NASAFIRMSAPIClient -> NASA FIRMS API: HTTP GET Request
-NASA FIRMS API -> NASAFIRMSAPIClient: CSV Response (fire detections)
+NASA FIRMS API -> NASAFIRMSAPIClient: JSON Response (fire detections)
 NASAFIRMSAPIClient -> FireDataIntegrator: Return FireDetectionData[]
 FireDataIntegrator -> FireDataIntegrator: Calculate Distance to Each Fire
 FireDataIntegrator -> FireDataIntegrator: Find Nearest Fire
@@ -1280,7 +1269,7 @@ The ForestShield system is deployed across multiple physical and virtual environ
 
 **Execution Environment:**
 
-- AWS Lambda runtime (Python 3.11)
+- AWS Lambda runtime (Python 3.9+)
 - Function: `wildfire-process-sensor-data`
 - Function: `wildfire-api-handler`
 
@@ -1308,7 +1297,7 @@ The ForestShield system is deployed across multiple physical and virtual environ
 
 **Resource Configuration:**
 
-- Memory: 256 MB (process_sensor_data), 256 MB (api_handler)
+- Memory: 256 MB (process_sensor_data), 128 MB (api_handler)
 - Timeout: 30 seconds
 - Concurrent execution limits: Per AWS account limits
 
@@ -1415,7 +1404,7 @@ The ForestShield system is deployed across multiple physical and virtual environ
 
 **Network Configuration:**
 
-- Public HTTPS endpoint: `https://firms.modaps.eosdis.nasa.gov/api/country/csv/{country_code}/MODIS_NRT/1`
+- Public HTTPS endpoint: `https://firms.modaps.eosdis.nasa.gov/api/viirs/active_fires`
 - Accessible via public internet from Lambda functions
 - No authentication required for public API
 
