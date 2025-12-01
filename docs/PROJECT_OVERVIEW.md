@@ -175,7 +175,7 @@ React Frontend Dashboard
 - `humidity` (Number) - Relative humidity percentage
 - `lat` (Number) - Latitude coordinate (hardcoded per device)
 - `lng` (Number) - Longitude coordinate (hardcoded per device)
-- `nearestFireKm` (Number) - Distance to nearest active fire in kilometers
+- `nearestFireDistance` (Number) - Distance to nearest active fire in kilometers
 - `riskScore` (Number) - Calculated risk score (0-100)
 - `ttl` (Number) - Time-to-live attribute for automatic record expiration (Unix timestamp)
 
@@ -189,7 +189,7 @@ React Frontend Dashboard
   "humidity": 40.2,
   "lat": 43.467,
   "lng": -79.699,
-  "nearestFireKm": 12.5,
+  "nearestFireDistance": 12.5,
   "riskScore": 78,
   "ttl": 1733090400
 }
@@ -447,7 +447,7 @@ The configured AWS profile must have appropriate IAM permissions for:
 
 - **NASA FIRMS API Call Frequency:** Every 15 minutes per sensor
 - **API Calls per Device:** Approximately 96 calls per device per day
-- **Dataset Source:** NASA FIRMS VIIRS (Visible Infrared Imaging Radiometer Suite) Active Fire Data
+- **Dataset Source:** NASA FIRMS MODIS_NRT (Moderate Resolution Imaging Spectroradiometer Near Real-Time) Active Fire Data
 - **Data Latency:** 2-3 hours from satellite detection to API data availability
 - **Rate Limit Compliance:** Call frequency adjusted to respect ~100 requests per hour per IP limit
 
@@ -471,25 +471,22 @@ The configured AWS profile must have appropriate IAM permissions for:
 **API Specification:**
 
 - **Service:** NASA FIRMS (Fire Information for Resource Management System)
-- **Dataset:** VIIRS (Visible Infrared Imaging Radiometer Suite) Active Fire Data
-- **Base URL:** `https://firms.modaps.eosdis.nasa.gov/api/`
-- **Endpoint Path:** `/viirs/active_fires`
-- **Response Format:** JSON
+- **Dataset:** MODIS_NRT (Moderate Resolution Imaging Spectroradiometer Near Real-Time) Active Fire Data
+- **Base URL:** `https://firms.modaps.eosdis.nasa.gov/api/country/csv/{country_code}/MODIS_NRT/1`
+- **Response Format:** CSV
 
 **Request Parameters:**
 
-- `bbox`: Bounding box coordinates based on sensor latitude/longitude (typically ±0.5° radius)
-- `date`: Current date in YYYY-MM-DD format
-- `format`: Response format (JSON)
+- `country_code`: ISO country code (e.g., "CAN" for Canada) used to retrieve fire detections for the specified country
 
 **Example Request:**
 
 ```
-GET https://firms.modaps.eosdis.nasa.gov/api/viirs/active_fires?bbox=43.0,-80.0,44.0,-79.0&date=2025-12-01&format=json
+GET https://firms.modaps.eosdis.nasa.gov/api/country/csv/CAN/MODIS_NRT/1
 ```
 
 **Response Structure:**
-Array of fire detection point objects containing latitude, longitude, brightness measurements, and confidence indicators.
+CSV format containing fire detection point records with latitude, longitude, brightness measurements, confidence indicators, and detection timestamps. The Lambda function parses the CSV response and extracts fire detection coordinates for distance calculations.
 
 **Rate Limits:**
 
@@ -511,7 +508,7 @@ Array of fire detection point objects containing latitude, longitude, brightness
 
 - Lambda function continues processing with sensor-only data
 - Risk score calculated using only temperature and humidity factors
-- `nearestFireKm` attribute set to null or default value (100km maximum distance)
+- `nearestFireDistance` attribute set to null or default value (100km maximum distance)
 - Error condition logged to CloudWatch Logs for monitoring and troubleshooting
 
 **2. Invalid IoT Sensor Data:**
