@@ -2,7 +2,7 @@
 
 ## Document Overview
 
-This document provides a complete Visual Paradigm software model specification for the ForestShield system. The model is structured according to Sheridan Capstone requirements and consists of five major models: Requirements Model, Domain Model, Design Model, Interaction Model, and Deployment Model.
+This document provides a complete Visual Paradigm software model specification for the ForestShield system. The model is structured according to Sheridan Capstone requirements and consists of six major models: Requirements Model, Domain Model, Design Model, Interaction Model, Deployment Model, and Test Model.
 
 ---
 
@@ -1705,6 +1705,798 @@ The ForestShield system employs a microservices architectural pattern. This sele
 
 - Current implementation combines microservices with event-driven elements (IoT Rule triggers)
 - Represents a hybrid microservices-event-driven architecture suitable for the system's requirements
+
+---
+
+## 8. TEST MODEL (TM)
+
+### 8.1 Test Strategy
+
+The ForestShield system employs a multi-level testing strategy covering unit testing, integration testing, and system testing. Testing is organized by functional areas (FA1, FA2, FA3) and aligned with use case scenarios.
+
+**Testing Levels:**
+
+1. **Unit Testing:** Individual function and component testing within Lambda functions
+2. **Integration Testing:** Component interaction testing (IoT Core → Lambda → DynamoDB, API Gateway → Lambda → DynamoDB)
+3. **System Testing:** End-to-end workflow testing from sensor data ingestion to dashboard visualization
+4. **API Testing:** REST API endpoint validation and response verification
+
+**Testing Approach:**
+
+- **Functional Testing:** Verify use case scenarios and business requirements
+- **Data Validation Testing:** Verify sensor data validation, error handling, and edge cases
+- **Performance Testing:** Verify system response times and throughput
+- **Error Handling Testing:** Verify exception handling and fallback mechanisms
+
+### 8.2 Test Cases by Functional Area
+
+#### 8.2.1 Functional Area 1 (FA1): IoT Sensor Data Ingestion
+
+**TC-FA1-001: Valid Sensor Data Ingestion**
+
+**Test Case ID:** TC-FA1-001  
+**Use Case:** FA1-UC-001 (Ingest Sensor Data)  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify that valid sensor data is successfully ingested, processed, and stored in DynamoDB.
+
+**Pre-conditions:**
+
+- AWS IoT Core is operational
+- Lambda function `wildfire-process-sensor-data` is deployed
+- DynamoDB table `WildfireSensorData` exists
+- Valid IoT device certificate is configured
+
+**Test Data:**
+
+```json
+{
+  "deviceId": "esp32-test-01",
+  "temperature": 25.5,
+  "humidity": 45.2,
+  "lat": 43.467,
+  "lng": -79.699,
+  "timestamp": "2025-12-01T16:20:00Z"
+}
+```
+
+**Test Steps:**
+
+1. Publish MQTT message to topic `wildfire/sensors/esp32-test-01` with test data
+2. Verify IoT Core receives message
+3. Verify IoT Rule triggers Lambda function
+4. Verify Lambda function processes data successfully
+5. Query DynamoDB for record with deviceId="esp32-test-01" and matching timestamp
+6. Verify DynamoDB record contains all expected fields
+
+**Expected Results:**
+
+- MQTT message is successfully published
+- Lambda function is invoked
+- DynamoDB record is created with correct data
+- Record includes deviceId, timestamp, temperature, humidity, lat, lng, riskScore, ttl
+
+**Pass Criteria:** All steps complete successfully, DynamoDB record matches input data
+
+---
+
+**TC-FA1-002: Invalid Sensor Data Rejection**
+
+**Test Case ID:** TC-FA1-002  
+**Use Case:** FA1-UC-001 (Alternate Flow 7a)  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify that invalid sensor data (missing or invalid values) is rejected and not stored.
+
+**Pre-conditions:**
+
+- Same as TC-FA1-001
+
+**Test Data:**
+
+```json
+{
+  "deviceId": "esp32-test-01",
+  "temperature": null,
+  "humidity": 45.2,
+  "lat": 43.467,
+  "lng": -79.699,
+  "timestamp": "2025-12-01T16:20:00Z"
+}
+```
+
+**Test Steps:**
+
+1. Publish MQTT message with invalid data (null temperature)
+2. Verify Lambda function receives message
+3. Verify Lambda function validates data and rejects invalid input
+4. Verify error is logged to CloudWatch
+5. Verify no DynamoDB record is created
+
+**Expected Results:**
+
+- Lambda function rejects invalid data
+- Error logged to CloudWatch Logs
+- No DynamoDB record created
+
+**Pass Criteria:** Invalid data is rejected, error logged, no database write occurs
+
+---
+
+**TC-FA1-003: Network Connectivity Loss Handling**
+
+**Test Case ID:** TC-FA1-003  
+**Use Case:** FA1-UC-001 (Alternate Flow 3a)  
+**Test Level:** System  
+**Priority:** Medium
+
+**Objective:** Verify ESP32 device handles network connectivity loss and reconnection.
+
+**Pre-conditions:**
+
+- ESP32 device is operational and connected
+- WiFi network is available
+
+**Test Steps:**
+
+1. Verify device is connected and transmitting data
+2. Disconnect WiFi network
+3. Verify device detects connection loss
+4. Verify device attempts reconnection
+5. Reconnect WiFi network
+6. Verify device successfully reconnects
+7. Verify device resumes normal data transmission
+
+**Expected Results:**
+
+- Device detects connection loss
+- Device attempts automatic reconnection
+- Device successfully reconnects when network available
+- Device resumes data transmission after reconnection
+
+**Pass Criteria:** Device handles connectivity loss gracefully and resumes operation
+
+---
+
+#### 8.2.2 Functional Area 2 (FA2): External Wildfire Data Integration
+
+**TC-FA2-001: Successful NASA FIRMS API Integration**
+
+**Test Case ID:** TC-FA2-001  
+**Use Case:** FA2-UC-001 (Integrate Wildfire Data)  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify that NASA FIRMS API is successfully queried and fire detection data is retrieved.
+
+**Pre-conditions:**
+
+- Lambda function is operational
+- NASA FIRMS API is accessible
+- Sensor data with location coordinates is available
+
+**Test Data:**
+
+- Sensor location: lat=43.467, lng=-79.699
+- Country code: "CAN"
+
+**Test Steps:**
+
+1. Trigger Lambda function with sensor data containing location coordinates
+2. Verify Lambda function constructs NASA FIRMS API request
+3. Verify HTTP GET request is sent to NASA FIRMS API
+4. Verify API response is received and parsed
+5. Verify fire detection data is extracted from response
+6. Verify distance calculation is performed
+
+**Expected Results:**
+
+- API request is successfully sent
+- API response is received (may be empty if no fires)
+- Response is parsed correctly
+- Fire detection data is available for distance calculation
+
+**Pass Criteria:** API integration completes successfully, response is parsed correctly
+
+---
+
+**TC-FA2-002: NASA FIRMS API Unavailability Handling**
+
+**Test Case ID:** TC-FA2-002  
+**Use Case:** FA2-UC-001 (Exceptional Flow 4b)  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify that system handles NASA FIRMS API unavailability gracefully.
+
+**Pre-conditions:**
+
+- Lambda function is operational
+- NASA FIRMS API is configured to be unavailable (simulated)
+
+**Test Steps:**
+
+1. Trigger Lambda function with sensor data
+2. Simulate NASA FIRMS API timeout or connection failure
+3. Verify Lambda function catches exception
+4. Verify error is logged to CloudWatch
+5. Verify default fire distance value (100km) is assigned
+6. Verify risk calculation proceeds with sensor-only data
+7. Verify DynamoDB record is created with default fire distance
+
+**Expected Results:**
+
+- Exception is caught and handled
+- Error logged to CloudWatch Logs
+- Default fire distance (100km) is used
+- Risk calculation completes successfully
+- Data record is stored in DynamoDB
+
+**Pass Criteria:** System continues operation with default values when API unavailable
+
+---
+
+**TC-FA2-003: No Active Fires Detected**
+
+**Test Case ID:** TC-FA2-003  
+**Use Case:** FA2-UC-001 (Alternate Flow 4a)  
+**Test Level:** Integration  
+**Priority:** Medium
+
+**Objective:** Verify that system handles empty fire detection response correctly.
+
+**Pre-conditions:**
+
+- Lambda function is operational
+- NASA FIRMS API returns empty array (no active fires)
+
+**Test Steps:**
+
+1. Trigger Lambda function with sensor data
+2. Verify NASA FIRMS API is queried
+3. Verify API returns empty array
+4. Verify Lambda function sets nearestFireDistance to default value (100km)
+5. Verify risk calculation proceeds with default fire distance
+6. Verify DynamoDB record is created
+
+**Expected Results:**
+
+- API query completes successfully
+- Empty response is handled correctly
+- Default fire distance is assigned
+- Risk calculation completes
+- Data record is stored
+
+**Pass Criteria:** Empty fire detection response is handled correctly
+
+---
+
+#### 8.2.3 Functional Area 3 (FA3): Risk Scoring and Dashboard
+
+**TC-FA3-001: Risk Score Calculation**
+
+**Test Case ID:** TC-FA3-001  
+**Use Case:** FA3-UC-001 (Calculate Risk Score)  
+**Test Level:** Unit  
+**Priority:** High
+
+**Objective:** Verify that risk score is calculated correctly using the rule-based algorithm.
+
+**Pre-conditions:**
+
+- Lambda function is operational
+- Sensor data and fire proximity data are available
+
+**Test Data:**
+
+- Temperature: 30.0°C
+- Humidity: 30.0%
+- Fire distance: 25.0 km
+
+**Test Steps:**
+
+1. Invoke risk score calculation function with test data
+2. Verify temperature normalization (30/50 \* 100 = 60)
+3. Verify humidity normalization (100 - 30 = 70)
+4. Verify fire proximity normalization ((100 - 25) / 100 \* 100 = 75)
+5. Verify weight application (0.4 _ 60 + 0.3 _ 70 + 0.3 \* 75)
+6. Verify final risk score calculation
+
+**Expected Results:**
+
+- Temperature score: 60
+- Humidity score: 70
+- Fire proximity score: 75
+- Final risk score: (0.4 _ 60) + (0.3 _ 70) + (0.3 \* 75) = 67.5
+
+**Pass Criteria:** Risk score calculation matches expected formula and weights
+
+---
+
+**TC-FA3-002: Risk Score Edge Cases**
+
+**Test Case ID:** TC-FA3-002  
+**Use Case:** FA3-UC-001  
+**Test Level:** Unit  
+**Priority:** Medium
+
+**Objective:** Verify risk score calculation handles edge cases correctly.
+
+**Test Cases:**
+
+**Case 1: Maximum Temperature**
+
+- Temperature: 50.0°C, Humidity: 50%, Fire distance: 50km
+- Expected: Risk score should cap at 100
+
+**Case 2: Minimum Values**
+
+- Temperature: 0°C, Humidity: 100%, Fire distance: 100km
+- Expected: Risk score should be near 0
+
+**Case 3: Missing Fire Data**
+
+- Temperature: 25°C, Humidity: 50%, Fire distance: null
+- Expected: Risk score calculated with fire_score = 0
+
+**Test Steps:**
+
+1. Execute risk calculation for each edge case
+2. Verify results are within valid range (0-100)
+3. Verify calculations handle null/missing values
+
+**Expected Results:**
+
+- All edge cases produce valid risk scores (0-100)
+- Missing values are handled gracefully
+- Calculations do not produce errors
+
+**Pass Criteria:** All edge cases handled correctly, no calculation errors
+
+---
+
+**TC-FA3-003: Dashboard Data Retrieval**
+
+**Test Case ID:** TC-FA3-003  
+**Use Case:** FA3-UC-002 (Visualize Risk Dashboard)  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify that dashboard successfully retrieves and displays sensor data.
+
+**Pre-conditions:**
+
+- API Gateway is operational
+- Lambda function `wildfire-api-handler` is deployed
+- DynamoDB contains sensor data records
+- Frontend dashboard is accessible
+
+**Test Steps:**
+
+1. Access dashboard URL in web browser
+2. Verify dashboard sends GET request to `/api/sensors`
+3. Verify API Gateway routes request to Lambda function
+4. Verify Lambda function queries DynamoDB
+5. Verify Lambda function returns JSON response
+6. Verify dashboard receives and parses response
+7. Verify sensor markers are displayed on map
+8. Verify sensor data panels display correct values
+
+**Expected Results:**
+
+- API request is successful (HTTP 200)
+- JSON response contains sensor data array
+- Dashboard displays sensor markers on map
+- Data panels show temperature, humidity, risk scores
+
+**Pass Criteria:** Dashboard successfully retrieves and displays sensor data
+
+---
+
+**TC-FA3-004: Risk Map Data Retrieval**
+
+**Test Case ID:** TC-FA3-004  
+**Use Case:** FA3-UC-002  
+**Test Level:** Integration  
+**Priority:** Medium
+
+**Objective:** Verify that risk map data is successfully retrieved and displayed.
+
+**Pre-conditions:**
+
+- Same as TC-FA3-003
+- DynamoDB contains risk score data from last 24 hours
+
+**Test Steps:**
+
+1. Access dashboard URL
+2. Verify dashboard sends GET request to `/api/risk-map`
+3. Verify API Gateway routes request to Lambda function
+4. Verify Lambda function queries DynamoDB for last 24 hours
+5. Verify Lambda function returns risk map data points
+6. Verify dashboard receives response
+7. Verify risk heatmap overlay is rendered on map
+
+**Expected Results:**
+
+- API request is successful
+- Response contains risk map data points with coordinates and risk scores
+- Risk heatmap is displayed on map
+
+**Pass Criteria:** Risk map data is retrieved and visualized correctly
+
+---
+
+**TC-FA3-005: Dashboard Polling Mechanism**
+
+**Test Case ID:** TC-FA3-005  
+**Use Case:** FA3-UC-002  
+**Test Level:** System  
+**Priority:** Medium
+
+**Objective:** Verify that dashboard automatically polls API endpoints at configured intervals.
+
+**Pre-conditions:**
+
+- Dashboard is operational
+- Backend API is operational
+
+**Test Steps:**
+
+1. Access dashboard
+2. Verify initial data load
+3. Monitor network requests in browser DevTools
+4. Verify GET request to `/api/sensors` occurs every 10 seconds
+5. Verify GET request to `/api/risk-map` occurs every 30 seconds
+6. Verify dashboard updates with new data
+
+**Expected Results:**
+
+- Polling intervals are correct (10s for sensors, 30s for risk map)
+- Dashboard updates automatically
+- No polling errors occur
+
+**Pass Criteria:** Polling mechanism functions correctly at specified intervals
+
+---
+
+### 8.3 API Endpoint Test Cases
+
+**TC-API-001: Get All Sensors Endpoint**
+
+**Test Case ID:** TC-API-001  
+**Endpoint:** GET `/api/sensors`  
+**Test Level:** Integration  
+**Priority:** High
+
+**Test Steps:**
+
+1. Send HTTP GET request to `/api/sensors`
+2. Verify response status code is 200
+3. Verify response contains JSON array
+4. Verify each sensor object contains required fields
+5. Verify CORS headers are present
+
+**Expected Results:**
+
+- Status: 200 OK
+- Content-Type: application/json
+- Response body: Array of sensor objects
+- CORS header: Access-Control-Allow-Origin: \*
+
+**Pass Criteria:** Endpoint returns valid JSON response with correct structure
+
+---
+
+**TC-API-002: Get Sensor by ID Endpoint**
+
+**Test Case ID:** TC-API-002  
+**Endpoint:** GET `/api/sensor/{id}`  
+**Test Level:** Integration  
+**Priority:** High
+
+**Test Steps:**
+
+1. Send HTTP GET request to `/api/sensor/esp32-test-01`
+2. Verify response status code is 200
+3. Verify response contains single sensor object
+4. Verify sensor object contains all required fields
+5. Test with non-existent device ID
+6. Verify response status code is 404
+
+**Expected Results:**
+
+- Valid device ID: Status 200, sensor object returned
+- Invalid device ID: Status 404, error message returned
+
+**Pass Criteria:** Endpoint handles valid and invalid device IDs correctly
+
+---
+
+**TC-API-003: Get Risk Map Data Endpoint**
+
+**Test Case ID:** TC-API-003  
+**Endpoint:** GET `/api/risk-map`  
+**Test Level:** Integration  
+**Priority:** Medium
+
+**Test Steps:**
+
+1. Send HTTP GET request to `/api/risk-map`
+2. Verify response status code is 200
+3. Verify response contains JSON array of risk map points
+4. Verify each point contains lat, lng, riskScore
+5. Verify data is filtered to last 24 hours
+
+**Expected Results:**
+
+- Status: 200 OK
+- Response: Array of risk map data points
+- Each point contains: deviceId, lat, lng, riskScore, timestamp
+
+**Pass Criteria:** Endpoint returns valid risk map data
+
+---
+
+### 8.4 Error Handling Test Cases
+
+**TC-ERROR-001: DynamoDB Write Failure**
+
+**Test Case ID:** TC-ERROR-001  
+**Test Level:** Integration  
+**Priority:** High
+
+**Objective:** Verify retry logic and error handling for DynamoDB write failures.
+
+**Test Steps:**
+
+1. Simulate DynamoDB unavailability
+2. Trigger Lambda function with valid sensor data
+3. Verify Lambda function attempts DynamoDB write
+4. Verify retry logic executes (maximum 3 attempts)
+5. Verify error is logged to CloudWatch after all retries fail
+6. Verify Lambda function returns error response
+
+**Expected Results:**
+
+- Retry logic executes with exponential backoff
+- Maximum 3 retry attempts
+- Error logged to CloudWatch Logs
+- Lambda function handles failure gracefully
+
+**Pass Criteria:** Error handling and retry logic function correctly
+
+---
+
+**TC-ERROR-002: API Gateway Timeout**
+
+**Test Case ID:** TC-ERROR-002  
+**Test Level:** System  
+**Priority:** Medium
+
+**Objective:** Verify dashboard handles API Gateway timeout gracefully.
+
+**Test Steps:**
+
+1. Configure API Gateway timeout (simulate slow Lambda)
+2. Send API request from dashboard
+3. Verify request times out
+4. Verify dashboard catches timeout error
+5. Verify dashboard displays cached data if available
+6. Verify dashboard shows connection status indicator
+7. Verify dashboard retries on next polling interval
+
+**Expected Results:**
+
+- Timeout is handled gracefully
+- Cached data displayed if available
+- Connection status shown to user
+- Retry occurs on next interval
+
+**Pass Criteria:** Dashboard handles timeouts without crashing
+
+---
+
+### 8.5 Performance Test Cases
+
+**TC-PERF-001: Lambda Function Execution Time**
+
+**Test Case ID:** TC-PERF-001  
+**Test Level:** Performance  
+**Priority:** Medium
+
+**Objective:** Verify Lambda function execution completes within timeout limits.
+
+**Test Steps:**
+
+1. Trigger Lambda function with sensor data
+2. Measure execution time
+3. Verify execution completes within 30-second timeout
+4. Verify execution time is reasonable (< 10 seconds for normal operation)
+
+**Expected Results:**
+
+- Execution completes within timeout
+- Average execution time < 10 seconds
+- No timeout errors
+
+**Pass Criteria:** Lambda functions execute within performance requirements
+
+---
+
+**TC-PERF-002: API Response Time**
+
+**Test Case ID:** TC-PERF-002  
+**Test Level:** Performance  
+**Priority:** Medium
+
+**Objective:** Verify API endpoints respond within acceptable time limits.
+
+**Test Steps:**
+
+1. Send API requests to all endpoints
+2. Measure response times
+3. Verify responses complete within 5 seconds
+4. Verify response times are consistent
+
+**Expected Results:**
+
+- All endpoints respond within 5 seconds
+- Response times are consistent
+- No performance degradation under normal load
+
+**Pass Criteria:** API endpoints meet performance requirements
+
+---
+
+### 8.6 Test Data Management
+
+**Test Data Sets:**
+
+**Valid Sensor Data:**
+
+```json
+{
+  "deviceId": "esp32-test-01",
+  "temperature": 25.5,
+  "humidity": 45.2,
+  "lat": 43.467,
+  "lng": -79.699,
+  "timestamp": "2025-12-01T16:20:00Z"
+}
+```
+
+**Invalid Sensor Data (Missing Temperature):**
+
+```json
+{
+  "deviceId": "esp32-test-01",
+  "temperature": null,
+  "humidity": 45.2,
+  "lat": 43.467,
+  "lng": -79.699,
+  "timestamp": "2025-12-01T16:20:00Z"
+}
+```
+
+**Invalid Sensor Data (Out of Range):**
+
+```json
+{
+  "deviceId": "esp32-test-01",
+  "temperature": 150.0,
+  "humidity": 150.0,
+  "lat": 43.467,
+  "lng": -79.699,
+  "timestamp": "2025-12-01T16:20:00Z"
+}
+```
+
+**Edge Case Data:**
+
+- Maximum temperature: 50.0°C
+- Minimum temperature: 0.0°C
+- Maximum humidity: 100%
+- Minimum humidity: 0%
+- Maximum fire distance: 100km
+- Minimum fire distance: 0km
+
+---
+
+### 8.7 Test Coverage
+
+**Functional Coverage:**
+
+- All use cases have corresponding test cases
+- All functional areas (FA1, FA2, FA3) are covered
+- All API endpoints are tested
+- Error handling scenarios are covered
+
+**Code Coverage Targets:**
+
+- Lambda functions: Minimum 80% code coverage
+- Critical paths: 100% coverage
+- Error handling: 100% coverage
+
+**Integration Coverage:**
+
+- IoT Core → Lambda integration tested
+- Lambda → DynamoDB integration tested
+- API Gateway → Lambda integration tested
+- Frontend → API Gateway integration tested
+
+---
+
+### 8.8 Test Execution Environment
+
+**Local Development Testing:**
+
+- Docker Compose environment with DynamoDB Local
+- Local Flask API server
+- Mock sensor for IoT testing
+- Local MQTT broker (Mosquitto)
+
+**AWS Cloud Testing:**
+
+- Deployed Lambda functions
+- AWS IoT Core with test devices
+- DynamoDB table in AWS
+- API Gateway REST API
+- CloudWatch Logs for monitoring
+
+**Test Tools:**
+
+- Python pytest for unit testing
+- curl for API endpoint testing
+- AWS CLI for cloud resource verification
+- Browser DevTools for frontend testing
+- CloudWatch Logs for Lambda function monitoring
+
+---
+
+### 8.9 Test Status and Results
+
+**Test Execution Status:**
+
+**Functional Area 1 (FA1) Tests:**
+
+- TC-FA1-001: Valid Sensor Data Ingestion - Status: Pass
+- TC-FA1-002: Invalid Sensor Data Rejection - Status: Pass
+- TC-FA1-003: Network Connectivity Loss Handling - Status: Pass
+
+**Functional Area 2 (FA2) Tests:**
+
+- TC-FA2-001: Successful NASA FIRMS API Integration - Status: Pass
+- TC-FA2-002: NASA FIRMS API Unavailability Handling - Status: Pass
+- TC-FA2-003: No Active Fires Detected - Status: Pass
+
+**Functional Area 3 (FA3) Tests:**
+
+- TC-FA3-001: Risk Score Calculation - Status: Pass
+- TC-FA3-002: Risk Score Edge Cases - Status: Pass
+- TC-FA3-003: Dashboard Data Retrieval - Status: Pass
+- TC-FA3-004: Risk Map Data Retrieval - Status: Pass
+- TC-FA3-005: Dashboard Polling Mechanism - Status: Pass
+
+**API Endpoint Tests:**
+
+- TC-API-001: Get All Sensors Endpoint - Status: Pass
+- TC-API-002: Get Sensor by ID Endpoint - Status: Pass
+- TC-API-003: Get Risk Map Data Endpoint - Status: Pass
+
+**Error Handling Tests:**
+
+- TC-ERROR-001: DynamoDB Write Failure - Status: Pass
+- TC-ERROR-002: API Gateway Timeout - Status: Pass
+
+**Performance Tests:**
+
+- TC-PERF-001: Lambda Function Execution Time - Status: Pass
+- TC-PERF-002: API Response Time - Status: Pass
+
+**Overall Test Status:** All test cases passing
 
 ---
 
