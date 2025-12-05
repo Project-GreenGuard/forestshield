@@ -25,6 +25,7 @@ cd forestshield-iot-firmware
 ### Required Libraries
 
 Install via Arduino Library Manager:
+
 - **ArduinoJson** (v6.x+)
 - **DHT sensor library** (Adafruit)
 - **Adafruit Unified Sensor** (dependency)
@@ -40,11 +41,13 @@ Install via Arduino Library Manager:
 ### Testing Without Hardware
 
 Use mock sensor:
+
 ```bash
 python mock_sensor.py
 ```
 
 ### Key Files
+
 - `esp32_wildfire_sensor.ino` - Main firmware
 - `mock_sensor.py` - Python mock for testing
 
@@ -69,6 +72,7 @@ docker-compose logs -f api
 **Location:** `lambda-processing/process_sensor_data.py`
 
 **Local Testing:**
+
 ```python
 # Test payload
 event = {
@@ -85,6 +89,7 @@ python process_sensor_data.py
 ```
 
 **Deployment:**
+
 ```bash
 cd lambda-processing
 zip -r ../lambda-processing.zip . -x "*.pyc" "__pycache__/*"
@@ -96,6 +101,7 @@ zip -r ../lambda-processing.zip . -x "*.pyc" "__pycache__/*"
 **Location:** `api-gateway-lambda/api_handler.py`
 
 **Local Testing:**
+
 ```bash
 # Use local Flask server
 cd api-gateway-lambda
@@ -106,6 +112,7 @@ curl http://localhost:5000/api/sensors
 ```
 
 **Deployment:**
+
 ```bash
 cd api-gateway-lambda
 zip -r ../api-gateway-lambda.zip . -x "*.pyc" "__pycache__/*"
@@ -115,6 +122,7 @@ zip -r ../api-gateway-lambda.zip . -x "*.pyc" "__pycache__/*"
 ### Environment Variables
 
 **Local:**
+
 ```env
 AWS_ENDPOINT_URL=http://dynamodb:8000
 AWS_ACCESS_KEY_ID=local
@@ -122,6 +130,7 @@ AWS_SECRET_ACCESS_KEY=local
 ```
 
 **AWS (via Terraform):**
+
 - `DYNAMODB_TABLE` - Set automatically
 
 ## Frontend Development
@@ -135,7 +144,7 @@ cd forestshield-frontend
 npm install
 
 # Create .env file
-echo "REACT_APP_API_URL=http://localhost:5000/api" > .env
+echo "REACT_APP_API_URL=http://localhost:5001/api" > .env
 
 # Start development server
 npm start
@@ -157,12 +166,14 @@ npm start
 ### Adding Features
 
 1. **New Component:**
+
    ```bash
    # Create component file
    touch src/components/NewComponent.js
    ```
 
 2. **Update API calls:**
+
    - Edit `src/App.js` or component files
    - Use `fetch()` or `axios` for API calls
 
@@ -201,11 +212,13 @@ terraform destroy
 ### Adding New Resources
 
 1. **Create Terraform file:**
+
    ```bash
    touch new-resource.tf
    ```
 
 2. **Define resource:**
+
    ```hcl
    resource "aws_service" "example" {
      # configuration
@@ -221,6 +234,7 @@ terraform destroy
 ### Updating Lambda Functions
 
 1. **Package Lambda:**
+
    ```bash
    cd ../forestshield-backend/lambda-processing
    zip -r ../../forestshield-infrastructure/lambda-processing.zip .
@@ -237,12 +251,14 @@ terraform destroy
 ### Unit Tests
 
 **Backend (Python):**
+
 ```bash
 cd forestshield-backend
 python -m pytest tests/
 ```
 
 **Frontend (Jest):**
+
 ```bash
 cd forestshield-frontend
 npm test
@@ -251,6 +267,7 @@ npm test
 ### Integration Tests
 
 **API Testing:**
+
 ```bash
 # Test local API
 curl http://localhost:5000/api/sensors
@@ -260,6 +277,7 @@ curl https://YOUR_API_GATEWAY_URL/api/sensors
 ```
 
 **IoT Testing:**
+
 - Monitor serial output
 - Check AWS IoT Core console
 - Verify DynamoDB entries
@@ -275,6 +293,7 @@ curl https://YOUR_API_GATEWAY_URL/api/sensors
 ### Commit Messages
 
 Follow conventional commits:
+
 ```
 feat: add new sensor endpoint
 fix: resolve DynamoDB query issue
@@ -314,13 +333,15 @@ docs: update API documentation
 ### Lambda Functions
 
 **CloudWatch Logs:**
+
 ```bash
-aws logs tail /aws/lambda/wildfire-process-sensor-data --follow --profile hackathon
+aws logs tail /aws/lambda/wildfire-process-sensor-data --follow --profile GreenGuard
 ```
 
 ### Frontend
 
 **Browser DevTools:**
+
 - Console for errors
 - Network tab for API calls
 - React DevTools extension
@@ -328,6 +349,7 @@ aws logs tail /aws/lambda/wildfire-process-sensor-data --follow --profile hackat
 ### IoT
 
 **Serial Monitor:**
+
 - Arduino IDE Serial Monitor
 - Baud rate: 115200
 - Check for connection errors
@@ -372,4 +394,3 @@ aws logs tail /aws/lambda/wildfire-process-sensor-data --follow --profile hackat
 
 **Development Guide Version**: 1.0  
 **Last Updated**: Current Semester
-

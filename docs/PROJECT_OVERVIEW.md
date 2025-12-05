@@ -398,7 +398,7 @@ Each repository maintains independent version control history and can be develop
 
 - **Infrastructure as Code:** Terraform (>= 1.0)
 - **Version Control:** Git
-- **Cloud Provider:** AWS (hackathon profile)
+- **Cloud Provider:** AWS (GreenGuard profile)
 
 ### 10.5 Local Development
 
@@ -410,7 +410,7 @@ Each repository maintains independent version control history and can be develop
 
 ### 11.1 Required Tools and Versions
 
-- **AWS CLI:** Configured with `hackathon` profile and appropriate credentials
+- **AWS CLI:** Configured with `GreenGuard` profile and appropriate credentials
 - **Terraform:** Version >= 1.0 for infrastructure provisioning
 - **Node.js:** Version >= 16.x for frontend development and build processes
 - **Python:** Version >= 3.9 for Lambda function development and local testing
@@ -423,7 +423,7 @@ Each repository maintains independent version control history and can be develop
 **Profile Setup:**
 
 ```bash
-aws configure --profile hackathon
+aws configure --profile GreenGuard
 ```
 
 **Required IAM Permissions:**
@@ -557,6 +557,6 @@ This system does not collect, store, or transmit personally identifiable informa
 
 ---
 
-**Project:** Capstone - Hackathon Profile  
+**Project:** Capstone - GreenGuard Profile  
 **Organization:** Project GreenGuard  
 **Service:** ForestShield

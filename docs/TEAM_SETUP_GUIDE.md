@@ -120,7 +120,7 @@ When infrastructure is deployed, you will need:
 **How to configure:**
 
 ```bash
-aws configure --profile hackathon
+aws configure --profile GreenGuard
 # Enter Access Key ID
 # Enter Secret Access Key
 # Enter region: us-east-1
