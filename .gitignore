@@ -18,4 +18,10 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Certificates (keep private!)
+*.pem
+*.key
+*.crt
+*.cert
+
 docs/VP_MODEL_ALIGNMENT_ANALYSIS.md
