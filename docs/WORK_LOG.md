@@ -6,6 +6,17 @@
 
 ---
 
+## Shipped — DLQ, monitoring, reports export, device ops, hygiene (March 22, 2026)
+
+- **Production (AWS CLI):** **`wildfire-process-sensor-data`** async **DLQ** → SQS **`wildfire-sensor-pipeline-dlq`**; IAM **`WildfireLambdaDLQSend`** on **`wildfire-lambda-role`**; IoT rule **`wildfire_sensor_data_rule`** **error action** → same queue via role **`wildfire-iot-rule-error-sqs`**.
+- **CloudWatch alarms (prod):** errors + throttles + **p95 duration** (25s threshold) for **`wildfire-process-sensor-data`** and **`wildfire-api-handler`** (names prefixed **`wildfire-`**).
+- **Terraform:** Extended **`dlq_and_monitoring.tf`** with API throttles + duration p95 alarms to match the above; run **`terraform plan`** before apply — live resources created via CLI may need **import** or a one-time reconcile.
+- **Frontend:** **Reports** page **Export CSV** (current sensor snapshot columns).
+- **Firmware:** **`docs/DEVICE_OPS.md`** (provisioning, buffers, ops); MQTT **`setBufferSize(512)`** for JSON headroom.
+- **Monorepo:** **`scripts/check-prod-health.sh`** polls **`/sensors`** and **`/nasa-fires`**; root **`README.md`** documents usage.
+
+---
+
 ## Session / milestone summary (March 2026)
 
 ### Backend & data pipeline (`forestshield-backend` → `main`)
@@ -45,12 +56,12 @@
 
 | Area | Talking point |
 |------|----------------|
-| **Lambda DLQ** | “Failed IoT processing lands in a queue instead of disappearing.” |
-| **Terraform vs reality** | “`terraform plan` matches what we actually run in AWS.” |
-| **Light monitoring** | “A few CloudWatch alarms / saved queries — not enterprise APM.” |
-| **Reports** | “Export or richer history — one concrete deliverable.” |
-| **Device ops** | “Firmware, provisioning, buffers — my lane.” |
-| **Monorepo hygiene** | “Submission tree matches how we demo.” |
+| **Lambda DLQ** | “Failed invokes and rule errors land in **SQS** — we can inspect payloads.” |
+| **Terraform vs reality** | “`terraform plan` before apply; import or align anything created in the console/CLI first.” |
+| **Light monitoring** | “CloudWatch **errors / throttles / p95 duration** on both Lambdas — no enterprise APM.” |
+| **Reports** | “**CSV export** of the live sensor snapshot from the Reports page.” |
+| **Device ops** | “**DEVICE_OPS.md** + larger MQTT buffer; provisioning checklist in-repo.” |
+| **Monorepo hygiene** | “Health script + README pointers + this work log.” |
 
 ---
 
@@ -64,4 +75,4 @@
 
 ---
 
-_Add dated bullets below as you finish DLQ, Terraform plan, reports, etc._
+_Use dated sections above for new milestones._
