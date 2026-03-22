@@ -1,6 +1,8 @@
-# Model Training Guide
+# Model training guide
 
-Training methodology for ForestShield AI wildfire risk prediction model.
+**Last updated:** March 2026.
+
+Training methodology for ForestShield AI wildfire risk prediction model (offline training; inference may be served via **Cloud Run** — see **`AI_PREDICTION_AND_TRAINING_SPEC.md`**).
 
 ## Overview
 

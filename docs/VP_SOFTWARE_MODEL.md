@@ -6,6 +6,17 @@ This document provides a complete Visual Paradigm software model specification f
 
 ---
 
+## As-built alignment (March 2026)
+
+The numbered requirements and models below remain the **formal VP baseline**. The following **shipped** behaviors **refine** them; authoritative technical detail is in **`API_DOCUMENTATION.md`**, **`ARCHITECTURE.md`**, and **`PROJECT_OVERVIEW.md`** §18.
+
+- **Risk assessment (BR-003, BRG-003):** Processing Lambda may call **GCP Cloud Run** (`CLOUD_RUN_PREDICT_URL`, `POST` JSON) for **`riskScore`**, **`riskLevel`**, **`spreadRateKmh`**; **rule-based fallback** if the URL is unset or the call fails.
+- **NASA FIRMS (BR-002):** In addition to processor use of FIRMS, the **dashboard** loads hotspots via **`GET /api/nasa-fires`** (API Lambda) on a **~3 minute** cadence with a map **toggle** (not only a single 15-minute batch rule).
+- **Reliability:** **SQS dead-letter queue** for failed processing / IoT rule error path; **CloudWatch alarms** on processing and API Lambdas (errors, throttles, duration p95). See **`PRODUCTION_VERIFICATION.md`**.
+- **Dashboard (BR-004):** **Reports** includes **CSV export** of the current sensor snapshot.
+
+---
+
 ## 1. REQUIREMENTS MODEL (RM)
 
 ### 1.1 High-Level Business Requirements (BR)

@@ -1,5 +1,7 @@
 # ForestShield - Documentation Formatting Guide
 
+**Last reviewed:** March 2026 (standards unchanged).
+
 ## Purpose
 
 This guide establishes the formatting standards for all documentation within the ForestShield project. All documentation must adhere to these standards to maintain consistency, professionalism, and academic rigor appropriate for capstone project deliverables.

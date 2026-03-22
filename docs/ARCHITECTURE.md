@@ -1,272 +1,126 @@
-# ForestShield - System Architecture
+# ForestShield — system architecture
 
-## High-Level Architecture
+**Last updated:** March 2026 (aligned with shipped AWS + React app).
+
+## High-level architecture
 
 ```
 ┌─────────────────┐
-│   ESP32 + DHT11 │  (IoT Sensor)
-│   (Hardware)    │
+│   ESP32 + DHT11 │  (IoT sensor)
 └────────┬────────┘
-         │ MQTT over TLS
-         │ Topic: wildfire/sensors/{deviceId}
+         │ MQTT TLS :8883  topic wildfire/sensors/{deviceId}
          ▼
 ┌─────────────────┐
-│  AWS IoT Core   │  (Device Management)
-│  - Thing        │
-│  - Certificate  │
-│  - Policy       │
-│  - Rule         │
-└────────┬────────┘
-         │ Triggers on: wildfire/sensors/+
-         ▼
-┌─────────────────┐
-│  Lambda Function│  (process_sensor_data)
-│  - Parse payload│
-│  - Fetch FIRMS  │
-│  - Calculate    │
-│    risk score   │
+│  AWS IoT Core   │  Thing, cert, policy, topic rule
+│  Rule → Lambda  │  Optional error action → SQS DLQ
 └────────┬────────┘
          │
-         ├──→ NASA FIRMS API (External)
+         ▼
+┌─────────────────┐     POST JSON (optional)
+│  Lambda         │────► GCP Cloud Run /predict  (CLOUD_RUN_PREDICT_URL)
+│ process_sensor  │      → riskScore, riskLevel, spreadRateKmh
+│ _data           │
+└────────┬────────┘
+         │ NASA FIRMS (HTTP) for proximity / enrichment
+         │ Async failures → SQS DLQ (same queue as IoT rule errors)
+         ▼
+┌─────────────────┐
+│   DynamoDB      │  WildfireSensorData (PK deviceId, SK timestamp, TTL on ttl)
+│   + riskLevel   │  nearestFireDistance, spreadRateKmh, …
+└────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│   DynamoDB      │  (Data Storage)
-│   Table:        │
-│   WildfireSensor│
-│   Data          │
-│   - deviceId (PK)│
-│   - timestamp (SK)│
-│   - TTL: 30 days│
+│  Lambda         │  GET /api/sensors, /sensor/{id}, /risk-map, /nasa-fires
+│  api_handler    │
 └────────┬────────┘
          │
-         │ Queried by
          ▼
 ┌─────────────────┐
-│  Lambda Function│  (api_handler)
-│  - GET /sensors │
-│  - GET /sensor/ │
-│    {id}         │
-│  - GET /risk-map│
+│  API Gateway    │  Regional REST, stage e.g. prod, CORS on responses
+│  /api/*         │
 └────────┬────────┘
-         │
-         │ REST API
+         │ HTTPS
          ▼
 ┌─────────────────┐
-│  API Gateway    │  (REST API)
-│  - /api/sensors │
-│  - /api/sensor/ │
-│    {id}         │
-│  - /api/risk-map│
-└────────┬────────┘
-         │ HTTP/HTTPS
-         │ CORS enabled
-         ▼
-┌─────────────────┐
-│  React PWA      │  (Frontend)
-│  - Map (Leaflet)│
-│  - Sensor data  │
-│  - Risk heatmap │
+│  React app      │  Map (sensors + risk circles + NASA FIRMS toggle),
+│  (CRA / PWA)    │  Alerts, Reports (CSV export), DataPanel, …
 └─────────────────┘
 ```
 
-## Component Details
+## Component summary
 
-### 1. IoT Sensor (ESP32)
+### IoT sensor (ESP32)
 
-**Hardware:**
-- ESP32 Dev Module
-- DHT11 sensor (temperature, humidity)
-- WiFi connectivity
+- Publishes JSON: `deviceId`, `temperature`, `humidity`, `lat`, `lng`, `timestamp` (see firmware repo).
+- Typical interval: **30 s** (configurable in sketch).
 
-**Firmware Responsibilities:**
-- Read sensor data every 30 seconds
-- Format JSON payload
-- Connect to AWS IoT Core via MQTT
-- Publish to topic: `wildfire/sensors/{deviceId}`
+### AWS IoT Core
 
-**Payload Format:**
-```json
-{
-  "deviceId": "esp32-01",
-  "temperature": 23.4,
-  "humidity": 40.2,
-  "lat": 43.467,
-  "lng": -79.699,
-  "timestamp": "2025-12-01T16:20:00Z"
-}
-```
+- Rule SQL: `SELECT * FROM 'wildfire/sensors/+'` → invoke **`wildfire-process-sensor-data`**.
+- **Error action (shipped):** failed rule deliveries can be sent to **SQS** (pipeline DLQ) for inspection.
 
-### 2. AWS IoT Core
+### Lambda: `wildfire-process-sensor-data`
 
-**Components:**
-- **IoT Thing**: Device registration
-- **Certificate**: Device authentication
-- **Policy**: Device permissions (connect, publish, subscribe)
-- **IoT Rule**: Triggers Lambda on `wildfire/sensors/+` topic
+- Enriches readings, FIRMS distance, **rule-based and/or Cloud Run** scoring.
+- Env: `DYNAMODB_TABLE`, `NASA_MAP_KEY`, `CLOUD_RUN_PREDICT_URL`, `CLOUD_RUN_TIMEOUT_SEC` (see API doc).
+- **Dead-letter queue:** failed async invokes → **SQS** (same operational pattern as IoT errors).
 
-**Configuration:**
-- Endpoint: Regional (e.g., `xxxxx.iot.us-east-1.amazonaws.com`)
-- Protocol: MQTT over TLS (port 8883)
-- Security: X.509 certificates
+### DynamoDB
 
-### 3. Lambda: Process Sensor Data
+- Table name environment-specific (e.g. **`WildfireSensorData`** in prod).
+- Important attributes: `riskScore`, `riskLevel`, `spreadRateKmh`, `nearestFireDistance`, `temperature`, `humidity`, `lat`, `lng`, `ttl`.
 
-**Function**: `wildfire-process-sensor-data`
+### Lambda: `wildfire-api-handler`
 
-**Responsibilities:**
-1. Receive IoT payload from IoT Core
-2. Parse sensor data (temperature, humidity, GPS)
-3. Fetch NASA FIRMS wildfire data (HTTP GET)
-4. Find nearest fire to sensor location
-5. Calculate risk score
-6. Store enriched data in DynamoDB
+| Route | Role |
+|--------|------|
+| `GET /api/sensors` | Latest row per device (merged public fields) |
+| `GET /api/sensor/{id}` | Latest row for one device |
+| `GET /api/risk-map` | Scan last 24 h (filter on `timestamp`) for map |
+| `GET /api/nasa-fires` | VIIRS hotspots for dashboard map (**`NASA_MAP_KEY`** on this Lambda) |
 
-**Input:**
-```json
-{
-  "deviceId": "esp32-01",
-  "temperature": 23.4,
-  "humidity": 40.2,
-  "lat": 43.467,
-  "lng": -79.699,
-  "timestamp": "2025-12-01T16:20:00Z"
-}
-```
+### API Gateway
 
-**Output (DynamoDB Item):**
-```json
-{
-  "deviceId": "esp32-01",
-  "timestamp": "2025-12-01T16:20:00Z",
-  "temperature": 23.4,
-  "humidity": 40.2,
-  "lat": 43.467,
-  "lng": -79.699,
-  "riskScore": 45.2,
-  "nearestFireDistance": 12.5,
-  "nearestFireData": "{...}",
-  "ttl": 1733097600
-}
-```
+- Lambda proxy integration; base URL ends with **`/{stage}/api`**.
 
-### 4. DynamoDB
+### React frontend
 
-**Table**: `WildfireSensorData`
+- **React 19**, Leaflet / react-leaflet; polls sensors / risk map / NASA layer per `App.js`.
+- **NASA FIRMS:** checkbox + orange `CircleMarker`s from `/api/nasa-fires`.
 
-**Schema:**
-- **Partition Key**: `deviceId` (String)
-- **Sort Key**: `timestamp` (String, ISO 8601)
-- **TTL**: `ttl` (Number, Unix timestamp)
+## Data flow (happy path)
 
-**Attributes:**
-- `temperature` (Number)
-- `humidity` (Number)
-- `lat` (Number)
-- `lng` (Number)
-- `riskScore` (Number)
-- `nearestFireDistance` (Number)
-- `nearestFireData` (String, JSON)
+1. Device publishes MQTT → IoT rule → **processing** Lambda.  
+2. Lambda optionally calls **Cloud Run**, writes **DynamoDB**.  
+3. Browser calls **API Gateway** → **api_handler** → DynamoDB.  
+4. UI updates map, panels, reports.
 
-**Billing**: On-demand (pay per request)
+## Security (summary)
 
-### 5. Lambda: API Handler
+- Devices: **X.509** + IoT policy.  
+- Lambdas: **IAM** least-privilege; execution roles include DynamoDB and (where configured) SQS DLQ send.  
+- API: **CORS** `Access-Control-Allow-Origin: *` on JSON responses (verify with **GET**, not necessarily HEAD).
 
-**Function**: `wildfire-api-handler`
+**Heavy add-ons** (WAF, GuardDuty, Cognito, etc.) remain **optional** for capstone scope unless required by the course.
 
-**Endpoints:**
+## Observability (shipped, light)
 
-**GET /api/sensors**
-- Returns: List of all sensors with latest data
-- Response: Array of sensor objects
+- **CloudWatch Logs** for both Lambdas.  
+- **CloudWatch alarms** (example naming): `wildfire-process-sensor-errors`, `wildfire-api-handler-errors`, throttles, **p95 duration** — see **`PRODUCTION_VERIFICATION.md`**.  
+- **SQS DLQ** for poison messages / failed rule actions.
 
-**GET /api/sensor/{id}**
-- Returns: Latest data for specific sensor
-- Response: Single sensor object
+## Cost and scale
 
-**GET /api/risk-map**
-- Returns: Risk map data (last 24 hours)
-- Response: Array of data points with coordinates and risk scores
+- On-demand DynamoDB, Lambda, API Gateway, IoT: suitable for demo/low traffic; see also **PROJECT_OVERVIEW** budget notes.
 
-### 6. API Gateway
+## Related documents
 
-**Type**: REST API (Regional)
-
-**Configuration:**
-- CORS enabled
-- Integration: Lambda Proxy
-- Stage: `prod`
-
-**Endpoints:**
-- `GET /api/sensors`
-- `GET /api/sensor/{id}`
-- `GET /api/risk-map`
-
-### 7. React Frontend
-
-**Framework**: React 19 (PWA)
-
-**Components:**
-- `MapArea`: Leaflet map with sensor markers
-- `DataPanel`: Sensor data display
-- `Sidebar`: Navigation
-- `Topbar`: Header
-
-**Features:**
-- Real-time data updates
-- Interactive map
-- Risk heatmap overlay (planned)
-- Responsive design
-
-## Data Flow Sequence
-
-1. **ESP32** reads sensor data
-2. **ESP32** publishes MQTT message to AWS IoT Core
-3. **IoT Rule** triggers Lambda function
-4. **Lambda** fetches NASA FIRMS data
-5. **Lambda** calculates risk score
-6. **Lambda** writes to DynamoDB
-7. **Frontend** requests data via API Gateway
-8. **API Gateway** invokes API handler Lambda
-9. **Lambda** queries DynamoDB
-10. **Frontend** displays data on map
-
-## Security Architecture
-
-### Current (This Semester)
-- AWS IoT Core: X.509 certificates for device authentication
-- IAM roles: Minimal permissions for Lambda functions
-- API Gateway: CORS configuration
-
-### Future (Next Semester)
-- WAF (Web Application Firewall)
-- GuardDuty (threat detection)
-- KMS (key management)
-- Cognito (user authentication)
-
-## Scalability Considerations
-
-- **DynamoDB**: On-demand scaling
-- **Lambda**: Auto-scaling (concurrent executions)
-- **IoT Core**: Handles millions of devices
-- **API Gateway**: Handles high request volumes
-
-## Cost Optimization
-
-- DynamoDB: On-demand pricing (no provisioned capacity)
-- Lambda: Free tier (1M requests/month)
-- IoT Core: First 250K messages/month free
-- API Gateway: First 1M requests/month free
-
-## Monitoring & Logging
-
-- **CloudWatch Logs**: Lambda function logs
-- **CloudWatch Metrics**: Lambda invocations, errors
-- **DynamoDB Metrics**: Read/write capacity, throttles
-- **IoT Core Metrics**: Messages published, rules triggered
+- **`API_DOCUMENTATION.md`** — exact URLs, env vars, sensor JSON.  
+- **`AI_PREDICTION_AND_TRAINING_SPEC.md`** — Cloud Run JSON contract.  
+- **`PROJECT_OVERVIEW.md`** — scope, timeline, §18 as-built addendum.  
+- **`PRODUCTION_VERIFICATION.md`** — how to re-run smoke tests.
 
 ---
 
-**Architecture Version**: 1.0  
-**Last Updated**: Current Semester
-
+**Document version:** 1.1  

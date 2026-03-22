@@ -119,4 +119,4 @@ See **[PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md)** and the monor
 
 ---
 
-**Last updated:** March 2026
+**Last updated:** March 2026 — matches **`API_DOCUMENTATION.md`** (ports, `/api` base) and **`TEAM_SETUP_GUIDE.md`**.

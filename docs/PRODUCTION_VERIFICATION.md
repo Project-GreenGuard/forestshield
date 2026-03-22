@@ -83,4 +83,4 @@ After deploy, in the browser (with `REACT_APP_API_URL` pointing at the same `/ap
 
 ---
 
-_Update this file’s “Last full run” section and the results table whenever you run `./scripts/verify-production.sh` for a demo or release._
+_Update this file’s **Last full run** line and the results table whenever you run `./scripts/verify-production.sh` for a demo or release. After material infra or API changes, re-run the script and align **API_DOCUMENTATION.md** and **ARCHITECTURE.md** if needed._

@@ -26,6 +26,9 @@ git clone https://github.com/Project-GreenGuard/forestshield-iot-firmware.git
 git clone https://github.com/Project-GreenGuard/forestshield-backend.git
 git clone https://github.com/Project-GreenGuard/forestshield-frontend.git
 git clone https://github.com/Project-GreenGuard/forestshield-infrastructure.git
+git clone https://github.com/Project-GreenGuard/forestshield.git   # project docs (this folder)
+# Optional: ML training code
+# git clone https://github.com/Project-GreenGuard/forestshield-ai.git
 ```
 
 ### 2. Frontend Setup
@@ -133,13 +136,13 @@ aws configure --profile GreenGuard
 
 **What you need:**
 
-- API Gateway endpoint URL (e.g., `https://xxxxx.execute-api.us-east-1.amazonaws.com`)
+- API Gateway invoke URL including **stage** and **`/api`** (e.g. `https://xxxxx.execute-api.us-east-1.amazonaws.com/prod/api`)
 
 **Where to use:**
 
-- Update `forestshield-frontend/.env`:
+- Update `forestshield-frontend/.env` (or CI secret **`PRODUCTION_API_URL`**):
   ```
-  REACT_APP_API_URL=https://xxxxx.execute-api.us-east-1.amazonaws.com/api
+  REACT_APP_API_URL=https://xxxxx.execute-api.us-east-1.amazonaws.com/prod/api
   ```
 
 #### 3. IoT Core Endpoint (For Firmware)
@@ -184,7 +187,7 @@ docker-compose logs -f
 
 ### Frontend Can't Connect to API
 
-1. Verify backend is running: `curl http://localhost:5001/health`
+1. Verify backend is running: `curl -sS "http://localhost:5001/api/sensors"`
 2. Check `.env` file exists and has correct URL
 3. Check browser console for CORS errors
 4. Verify no firewall blocking localhost connections
@@ -200,7 +203,7 @@ If you see errors about missing environment variables:
 ## Getting Help
 
 1. Check repository README files for component-specific documentation
-2. Review `QUICK_START.md` in `/docs` folder
+2. Review **`QUICK_START.md`** in the **`forestshield/docs/`** folder (or **[DOCUMENTATION_INDEX.md](./DOCUMENTATION_INDEX.md)**)
 3. Contact team lead for AWS credentials and infrastructure details
 4. Check GitHub Issues for known problems
 
@@ -210,9 +213,9 @@ After local setup is complete:
 
 1. **Review Documentation:**
 
-   - Read `PROJECT_OVERVIEW.md` for system architecture
-   - Read `DEVELOPMENT_GUIDE.md` for development workflow
-   - Read component-specific README files
+   - Read **`PROJECT_OVERVIEW.md`** and **`ARCHITECTURE.md`**
+   - Read **`QUICK_START.md`** and **`API_DOCUMENTATION.md`**
+   - Read each repo’s **`README.md`**
 
 2. **Start Developing:**
 
@@ -227,6 +230,6 @@ After local setup is complete:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** Current Semester  
-**Project:** Project GreenGuard - ForestShield
+**Document version:** 1.1  
+**Last updated:** March 2026  
+**Project:** Project GreenGuard — ForestShield

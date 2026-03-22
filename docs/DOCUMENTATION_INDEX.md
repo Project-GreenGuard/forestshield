@@ -26,3 +26,7 @@ Start with **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** for what the system 
 | `forestshield-ai` (optional) | Offline ML training scripts; see [MODEL_TRAINING.md](./MODEL_TRAINING.md) |
 
 **Not in this folder (removed earlier as duplicate):** `SETUP_GUIDE`, `DEVELOPMENT_GUIDE`, `STAGING_AND_CICD` — use **QUICK_START**, per-repo READMEs, and **infrastructure** workflows instead.
+
+---
+
+**Documentation set last reviewed:** March 2026 — keep **`API_DOCUMENTATION`**, **`ARCHITECTURE`**, **`PROJECT_OVERVIEW`** §18, and **`PRODUCTION_VERIFICATION`** in sync when you change Lambdas, routes, or infra.

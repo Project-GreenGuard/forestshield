@@ -1,5 +1,7 @@
 # ForestShield - Project Overview
 
+**Last reviewed:** March 2026 — for diagram-level detail and ops, see **[ARCHITECTURE.md](./ARCHITECTURE.md)**; for REST and env vars, **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)**.
+
 ## 1.0 Project Description
 
 Project GreenGuard: ForestShield is an AI-driven wildfire response and management system developed as a capstone project. The system collects real-time environmental data from ESP32 IoT sensors deployed in forest environments, integrates NASA FIRMS wildfire detection data, performs automated risk scoring calculations, and visualizes results through a React-based Progressive Web Application dashboard.
@@ -250,7 +252,7 @@ The current implementation uses rule-based calculations. Machine learning-based 
 
 ## 7.0 Repository Structure
 
-The project is organized into five independent repositories:
+The project is organized into independent repositories:
 
 ```
 Project-GreenGuard/
@@ -258,7 +260,8 @@ Project-GreenGuard/
 ├── forestshield-backend/           # AWS Lambda functions and API handlers
 ├── forestshield-frontend/          # React Progressive Web Application
 ├── forestshield-infrastructure/    # Terraform Infrastructure as Code
-└── forestshield/                   # Project documentation and specifications
+├── forestshield/                   # Project documentation (this tree)
+└── forestshield-ai/                # Optional: offline ML training (see MODEL_TRAINING.md)
 ```
 
 Each repository maintains independent version control history and can be developed and deployed separately.

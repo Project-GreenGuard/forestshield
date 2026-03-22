@@ -4,7 +4,7 @@
 
 ## Role
 
-**`process_sensor_data`** (AWS Lambda) may call a **GCP Cloud Run** HTTPS endpoint to obtain ML-derived **risk** and **spread**. If the call fails or **`CLOUD_RUN_PREDICT_URL`** is unset, the handler uses **rule-based** scoring and a local spread heuristic.
+**`process_sensor_data`** (AWS Lambda) may call a **GCP Cloud Run** HTTPS endpoint to obtain ML-derived **risk** and **spread**. If the call fails or **`CLOUD_RUN_PREDICT_URL`** is unset, the handler uses **rule-based** scoring and a local spread heuristic. Optional **`CLOUD_RUN_TIMEOUT_SEC`** controls the HTTP client timeout (see **`API_DOCUMENTATION.md`**).
 
 ## Request (POST)
 

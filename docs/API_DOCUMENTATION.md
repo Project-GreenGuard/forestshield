@@ -42,6 +42,11 @@ Field names match DynamoDB / API responses:
 
 - Triggered by **IoT Core** (and test invokes). Body is JSON with at least `deviceId`, `temperature`, `humidity`, `lat`, `lng`, optional `timestamp`.
 
+## Operations (AWS, shipped)
+
+- **DLQ:** SQS queue (e.g. **`wildfire-sensor-pipeline-dlq`**) for failed **processing** Lambda async invokes and (when configured) **IoT rule** error actions — inspect messages for bad payloads.
+- **Alarms:** CloudWatch **errors**, **throttles**, **duration p95** on **`wildfire-process-sensor-data`** and **`wildfire-api-handler`**. Diagram-level summary: **`ARCHITECTURE.md`**; re-run checks: **`PRODUCTION_VERIFICATION.md`**.
+
 ## Environment variables (summary)
 
 **Processing Lambda (`process_sensor_data`):**
