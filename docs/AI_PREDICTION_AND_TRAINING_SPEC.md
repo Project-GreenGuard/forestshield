@@ -1,108 +1,44 @@
-# ForestShield AI Prediction & Training Spec (Draft)
+# AI prediction — integration spec (Cloud Run)
 
-> This document is intentionally open-ended so Samira (and future contributors) can propose and iterate on the AI design while staying aligned with the existing system.
+**Last updated:** March 2026.
 
-## 1. Purpose
+## Role
 
-- Define how AI-based wildfire risk prediction should *conceptually* work in ForestShield.
-- Describe the inputs/outputs that the backend and Lambdas will eventually rely on.
-- Capture an initial training strategy and leave space for iteration once we see how it fits with our deployment and budget.
+**`process_sensor_data`** (AWS Lambda) may call a **GCP Cloud Run** HTTPS endpoint to obtain ML-derived **risk** and **spread**. If the call fails or **`CLOUD_RUN_PREDICT_URL`** is unset, the handler uses **rule-based** scoring and a local spread heuristic.
 
-## 2. Model Responsibility
+## Request (POST)
 
-**Goal:** Given a single sensor reading (plus context), output a wildfire risk assessment that is compatible with the existing rule-based `riskScore` (0–100) and risk levels.
+`Content-Type: application/json`
 
-High-level contract:
+```json
+{
+  "temperature": 37.5,
+  "humidity": 22.0,
+  "lat": 43.55,
+  "lng": -79.65,
+  "nearestFireDistance": 12.3,
+  "timestamp": "2026-03-22T19:13:23Z"
+}
+```
 
-- **Input:** One sensor data point (what processing Lambda sees after IoT + NASA FIRMS).
-- **Output:**
-  - `risk_score` – float, 0–100
-  - `risk_level` – one of `LOW`, `MEDIUM`, `HIGH`
-  - `model_version` – string identifier (for debugging / A/B later)
+- **`nearestFireDistance`:** use a numeric km value when known; Lambda may send **`100.0`** when missing (implementation detail).
 
-The rest of the system should not care whether this comes from a rule-based model, a local ML model, or Vertex AI — only that the contract above is honoured.
+## Response (200 JSON)
 
-## 3. Planned Inputs (Features)
+The Lambda accepts **either** snake_case **or** camelCase:
 
-These are *candidate* features based on the current architecture; they are not final. Samira can modify/refine this list as she designs the model.
+| Logical field | Accepted keys |
+|---------------|----------------|
+| Score | `risk_score` or `riskScore` |
+| Level | `risk_level` or `riskLevel` — `LOW` / `MEDIUM` / `HIGH` (normalized) |
+| Spread km/h | `spread_rate` or `spreadRateKmh` |
 
-Core fields already flowing through the system:
+If level is missing or invalid, Lambda derives level from score thresholds.
 
-- `temperature` (float, °C)
-- `humidity` (float, %)
-- `lat` (float, degrees)
-- `lng` (float, degrees)
-- `nearestFireDistance` (float, km; can default to a max value like 100 when unknown)
-- `timestamp` (ISO8601 string)
+## Persistence
 
-Possible derived features (to be validated later):
+Mapped into DynamoDB as **`riskScore`**, **`riskLevel`**, **`spreadRateKmh`** (Decimals). The **API Lambda** reads these fields and merges with **`sensor_enrichment`** for legacy items.
 
-- Normalised temperature, e.g. `temp_normalized = temperature / 50.0`
-- Inverse humidity, e.g. `humidity_inverse = 1 - humidity / 100.0`
-- Fire proximity score, e.g. scaled version of `nearestFireDistance`
-- Time-based features:
-  - hour-of-day (0–23, or sin/cos encoding)
-  - day-of-week or month-of-year
-- Simple location buckets (e.g. cluster lat/lng into regions)
+## Training / model lifecycle
 
-**Open question for Samira:**  
-- Which of these features make sense scientifically, and which should be dropped or extended (e.g. vegetation index, weather history, etc.)?
-
-## 4. Output Semantics
-
-- `risk_score`:
-  - Continuous 0–100 scale.
-  - Should roughly align with the current rule-based score so the dashboard doesn’t need to be redesigned.
-- `risk_level`:
-  - Suggested thresholds (can be revisited):
-    - `LOW`: 0–30
-    - `MEDIUM`: >30–60
-    - `HIGH`: >60–100
-- `model_version`:
-  - Free-form string (e.g. `v1-rule-approx`, `v2-vertex-linear`, etc.) for logging and debugging.
-
-## 5. Initial Training Strategy (for Samira)
-
-**Phase 1 – Cheap and pragmatic:**
-
-- **Labels:**
-  - Use the existing rule-based `riskScore` as the target (`y`) so we can train a model that approximates the current behaviour.
-  - Later, if we ever get real incident/outcome data, we can retrain with better labels.
-- **Data source:**
-  - Historical data exported from DynamoDB or collected into CSVs with the fields listed above.
-  - It’s fine to start with a relatively small dataset; this is more about wiring and deployment than deep science.
-- **Model type:**
-  - Simple regression model (e.g. RandomForestRegressor, Gradient Boosted Trees, or even linear regression as a baseline).
-- **Goal:**
-  - Get a model that is:
-    - Stable (no crazy predictions),
-    - Roughly aligned with the current rule,
-    - Easy to export for Vertex AI.
-
-**Phase 2 – Vertex AI integration:**
-
-- Export the trained model from the `forestshield-ai` repo in a format Vertex AI can serve (joblib, pickle, or container depending on the approach we settle on).
-- Deploy to a single Vertex AI endpoint in `us-central1` with minimal replicas for cost control.
-- The processing Lambda (AWS) will call this endpoint over HTTP and receive `risk_score` / `risk_level` back.
-
-## 6. Deployment & Cost Considerations (High-Level)
-
-- Training can initially run:
-  - Locally (developer machine),
-  - Or in a one-off cloud job (Colab/Cloud Build) triggered manually.
-- Serving should be:
-  - Via Vertex AI Online Prediction (single small endpoint),
-  - With low or zero minimum replicas to avoid idle cost.
-- No always-on custom servers are required for the first iteration.
-
-## 7. Open Items for Samira to Propose
-
-Samira can propose and document (in comments on this file or a follow-up doc):
-
-- Final feature list (which inputs/derived features to actually use).
-- Specific model choice (algorithm, hyperparameters).
-- How to handle missing or noisy sensor data.
-- How to gradually migrate from the rule-based risk to the ML-based risk (e.g. shadow mode, logging only).
-
-Once we see how this design behaves with our deployment structure and budget, we can tighten the spec and update the training + inference code in `forestshield-ai` accordingly.
-
+Owned by the **Cloud Run service** repository/image (e.g. `forestshield-ai`). This doc does not prescribe framework; only the **HTTP JSON contract** above must stay stable for Lambda compatibility.

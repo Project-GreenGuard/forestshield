@@ -1,217 +1,63 @@
-# ForestShield - API Documentation
+# ForestShield — API documentation
 
-## Base URL
+**Last updated:** March 2026.
 
-**Local Development:**
-```
-http://localhost:5000/api
-```
+## Base URLs
 
-**Production (API Gateway):**
-```
-https://YOUR_API_GATEWAY_URL/api
-```
+| Environment | Base URL pattern |
+|-------------|------------------|
+| Local (Docker) | `http://localhost:5001/api` — map `REACT_APP_API_URL` to this in Create React App |
+| AWS (API Gateway) | `https://{api-id}.execute-api.{region}.amazonaws.com/{stage}/api` — e.g. production **`…/prod/api`** |
 
-## Endpoints
+Frontend code appends paths such as `/sensors` to the base (no duplicate `/api`).
 
-### 1. Get All Sensors
+## REST endpoints
 
-**GET** `/api/sensors`
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/sensors` | Latest row per `deviceId` (merged public fields) |
+| GET | `/sensor/{id}` | Latest row for one device |
+| GET | `/risk-map` | Points from last 24h for map visualization |
+| GET | `/nasa-fires` | VIIRS-based hotspots (needs **`NASA_MAP_KEY`** on API Lambda). **Dashboard map** polls this and draws orange **`CircleMarker`**s (toggle “NASA FIRMS”). |
+| POST | `/ingest` | **Local Flask only** — runs `process_sensor_data` with JSON body (simulates IoT) |
 
-Returns a list of all sensors with their latest data.
+## Sensor JSON shape (typical)
 
-**Response:**
-```json
-[
-  {
-    "deviceId": "esp32-01",
-    "temperature": 23.4,
-    "humidity": 40.2,
-    "lat": 43.467,
-    "lng": -79.699,
-    "riskScore": 45.2,
-    "timestamp": "2025-12-01T16:20:00Z"
-  },
-  {
-    "deviceId": "esp32-02",
-    "temperature": 25.1,
-    "humidity": 38.5,
-    "lat": 43.470,
-    "lng": -79.702,
-    "riskScore": 52.3,
-    "timestamp": "2025-12-01T16:21:00Z"
-  }
-]
-```
+Field names match DynamoDB / API responses:
 
-**Status Codes:**
-- `200 OK` - Success
-- `500 Internal Server Error` - Server error
+| Field | Type | Notes |
+|-------|------|--------|
+| `deviceId` | string | Partition key |
+| `timestamp` | string | ISO 8601, range key |
+| `temperature`, `humidity` | number | |
+| `lat`, `lng` | number | |
+| `riskScore` | number | 0–100 scale |
+| `riskLevel` | string | `LOW` \| `MEDIUM` \| `HIGH` |
+| `spreadRateKmh` | number | From Cloud Run or heuristic |
+| `nearestFireDistance` | number | km; **`-1`** if unknown |
 
----
+**Naming:** Use **`nearestFireDistance`** (not `nearestFireKm`) end-to-end.
 
-### 2. Get Sensor by ID
+## Processing Lambda (not HTTP from browser)
 
-**GET** `/api/sensor/{id}`
+- Triggered by **IoT Core** (and test invokes). Body is JSON with at least `deviceId`, `temperature`, `humidity`, `lat`, `lng`, optional `timestamp`.
 
-Returns the latest data for a specific sensor.
+## Environment variables (summary)
 
-**Parameters:**
-- `id` (path parameter) - Device ID (e.g., `esp32-01`)
+**Processing Lambda (`process_sensor_data`):**
 
-**Example:**
-```
-GET /api/sensor/esp32-01
-```
+- `DYNAMODB_TABLE` — required in AWS
+- `NASA_MAP_KEY` — optional; enables FIRMS area CSV (Ontario bbox), else country CSV
+- `CLOUD_RUN_PREDICT_URL` — optional; full URL to `POST /predict`
+- `CLOUD_RUN_TIMEOUT_SEC` — optional; default short; increase if Cloud Run is slow
 
-**Response:**
-```json
-{
-  "deviceId": "esp32-01",
-  "timestamp": "2025-12-01T16:20:00Z",
-  "temperature": 23.4,
-  "humidity": 40.2,
-  "lat": 43.467,
-  "lng": -79.699,
-  "riskScore": 45.2,
-  "nearestFireDistance": 12.5,
-  "nearestFireData": "{\"latitude\":\"43.480\",\"longitude\":\"-79.710\",...}",
-  "ttl": 1733097600
-}
-```
+**API Lambda (`api_handler`):**
 
-**Status Codes:**
-- `200 OK` - Success
-- `404 Not Found` - Sensor not found
-- `500 Internal Server Error` - Server error
+- `DYNAMODB_TABLE`
+- `NASA_MAP_KEY` — for `/api/nasa-fires`
 
----
+**Local Docker (`docker-compose`):** see `forestshield-backend/.env.example`.
 
-### 3. Get Risk Map Data
+## GitHub Actions (frontend build)
 
-**GET** `/api/risk-map`
-
-Returns risk map data for visualization (last 24 hours).
-
-**Response:**
-```json
-[
-  {
-    "deviceId": "esp32-01",
-    "lat": 43.467,
-    "lng": -79.699,
-    "riskScore": 45.2,
-    "temperature": 23.4,
-    "humidity": 40.2,
-    "timestamp": "2025-12-01T16:20:00Z"
-  },
-  {
-    "deviceId": "esp32-01",
-    "lat": 43.467,
-    "lng": -79.699,
-    "riskScore": 46.1,
-    "temperature": 23.6,
-    "humidity": 39.8,
-    "timestamp": "2025-12-01T16:50:00Z"
-  }
-]
-```
-
-**Status Codes:**
-- `200 OK` - Success
-- `500 Internal Server Error` - Server error
-
----
-
-## Data Models
-
-### Sensor Data Object
-
-```typescript
-interface SensorData {
-  deviceId: string;           // Device identifier (e.g., "esp32-01")
-  timestamp: string;          // ISO 8601 timestamp (e.g., "2025-12-01T16:20:00Z")
-  temperature: number;        // Temperature in Celsius
-  humidity: number;           // Humidity percentage (0-100)
-  lat: number;                // Latitude (GPS coordinate)
-  lng: number;                // Longitude (GPS coordinate)
-  riskScore: number;          // Calculated risk score (0-100)
-  nearestFireDistance?: number; // Distance to nearest fire in km (optional)
-  nearestFireData?: string;   // JSON string of nearest fire data (optional)
-  ttl?: number;               // Time-to-live (Unix timestamp, optional)
-}
-```
-
-### Risk Score Calculation
-
-The risk score is calculated using:
-
-```
-riskScore = w1 * temp_score + w2 * humidity_score + w3 * fire_score
-
-Where:
-- temp_score = min(temperature / 50.0, 1.0) * 100
-- humidity_score = (1.0 - min(humidity / 100.0, 1.0)) * 100
-- fire_score = max(0, (100 - min(fire_distance, 100)) / 100.0) * 100
-- w1 = 0.4, w2 = 0.3, w3 = 0.3
-```
-
-**Risk Score Ranges:**
-- `0-30`: Low risk
-- `31-60`: Medium risk
-- `61-100`: High risk
-
-## IoT Payload Format
-
-Sensors publish to AWS IoT Core with this format:
-
-**Topic:** `wildfire/sensors/{deviceId}`
-
-**Payload:**
-```json
-{
-  "deviceId": "esp32-01",
-  "temperature": 23.4,
-  "humidity": 40.2,
-  "lat": 43.467,
-  "lng": -79.699,
-  "timestamp": "2025-12-01T16:20:00Z"
-}
-```
-
-## CORS
-
-All endpoints support CORS with:
-- **Access-Control-Allow-Origin**: `*`
-- **Access-Control-Allow-Methods**: `GET, OPTIONS`
-- **Access-Control-Allow-Headers**: `Content-Type`
-
-## Error Responses
-
-### Standard Error Format
-
-```json
-{
-  "error": "Error message description"
-}
-```
-
-### Common Error Codes
-
-- `400 Bad Request` - Invalid request
-- `404 Not Found` - Resource not found
-- `500 Internal Server Error` - Server error
-
-## Rate Limiting
-
-Currently no rate limiting implemented. Consider adding for production.
-
-## Authentication
-
-Currently no authentication required. Consider adding API keys or Cognito for production.
-
----
-
-**API Version**: 1.0  
-**Last Updated**: Current Semester
-
+`REACT_APP_API_URL` is set from repository secret **`PRODUCTION_API_URL`** (or staging equivalent). Update the secret and **re-run deploy** after changing the API base.
