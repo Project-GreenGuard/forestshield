@@ -9,6 +9,7 @@ Start with **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** for what the system 
 | [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) | REST routes, env vars, DynamoDB fields, production verification commands |
 | [QUICK_START.md](./QUICK_START.md) | Run backend + frontend locally, test data, Lambda zip / Terraform pointers |
 | [PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md) | Prod smoke tests, how to run `verify-production.sh` / `check-prod-health.sh` |
+| [DEMONSTRATION_GUIDE.md](./DEMONSTRATION_GUIDE.md) | **How to demo everything you built** (video / live / marker walkthrough) |
 | [AI_PREDICTION_AND_TRAINING_SPEC.md](./AI_PREDICTION_AND_TRAINING_SPEC.md) | Cloud Run `/predict` JSON contract (processing Lambda) |
 | [MODEL_TRAINING.md](./MODEL_TRAINING.md) | Offline training methodology (gradient boosting / Ontario FIRMS–based dataset) |
 | [TEAM_SETUP_GUIDE.md](./TEAM_SETUP_GUIDE.md) | Org, repos, access, and team onboarding |
