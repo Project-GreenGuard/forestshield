@@ -14,6 +14,7 @@
 - **Frontend:** **Reports** page **Export CSV** (current sensor snapshot columns).
 - **Firmware:** **`docs/DEVICE_OPS.md`** (provisioning, buffers, ops); MQTT **`setBufferSize(512)`** for JSON headroom.
 - **Monorepo:** **`scripts/check-prod-health.sh`** polls **`/sensors`** and **`/nasa-fires`**; **`scripts/verify-production.sh`** runs a **full** prod + repo check (API schema, CORS on GET, optional AWS, `npm run build`, **`terraform validate`**). Documented in **`docs/PRODUCTION_VERIFICATION.md`**; root **`README.md`** updated.
+- **Documentation cleanup (March 2026):** Removed overlapping / stale files (**`VP_SOFTWARE_MODEL`**, **`ARCHITECTURE`**, **`SETUP_GUIDE`**, **`DEVELOPMENT_GUIDE`**, **`TEAM_SETUP_GUIDE`**, **`STAGING_AND_CICD`**, **`DOCUMENTATION_FORMATTING_GUIDE`**). **`DOCUMENTATION_INDEX`** + **`QUICK_START`** now list the canonical set; architecture stays in **`PROJECT_OVERVIEW`**.
 
 ---
 

@@ -1,84 +1,52 @@
-# ForestShield - Quick Start Guide
+# ForestShield — quick start
 
-## Get the Application Running Locally
+Run the stack locally and find pointers for Lambdas, Terraform, and devices.
 
-### Prerequisites
+## Prerequisites
 
-- Docker & Docker Compose
-- Node.js >= 16
-- Python 3.11+ (optional, for local testing)
+- Docker & Docker Compose  
+- Node.js ≥ 16  
+- Python 3.11+ (optional: mock sensor, Lambda scripts)
 
-### Step 1: Start Backend Services
+## Run locally
+
+### 1. Backend (Docker)
 
 ```bash
 cd forestshield-backend
 docker-compose up -d
-```
-
-This starts:
-
-- **API Server** on http://localhost:5001
-- **DynamoDB Local** on http://localhost:8000
-- **Mosquitto MQTT** on ports 1883, 9001
-
-Verify services are running:
-
-```bash
 docker-compose ps
 ```
 
-### Step 2: Create Frontend Environment File
+On the host, the API is exposed as **`http://localhost:5001`** (maps to port 5000 in the container). Use **`http://localhost:5001/api`** as the frontend base (see below).
+
+Services typically include: API, DynamoDB Local (~8000), Mosquitto MQTT (1883).
+
+### 2. Frontend
 
 ```bash
-cd ../forestshield-frontend
-cp .env.example .env
-# Edit .env if needed (default works for local development)
-```
-
-### Step 3: Install Frontend Dependencies
-
-```bash
+cd forestshield-frontend
+cp .env.example .env   # or: echo "REACT_APP_API_URL=http://localhost:5001/api" > .env
 npm install
-```
-
-### Step 4: Start Frontend
-
-```bash
 npm start
 ```
 
-Frontend will open at http://localhost:3000
+App: **http://localhost:3000**
 
----
+### 3. Optional — mock sensor (no ESP32)
 
-## Cost Information
+From **`forestshield-iot-firmware`** (or your MQTT test client), publish JSON to the topic / broker your setup expects. For a local Mosquitto path, see that repo’s README / `mock_sensor.py` if present.
 
-**All services use AWS Free Tier:**
-
-- Lambda: 1M requests/month free
-- DynamoDB: On-demand pricing (cost-effective for low traffic)
-- IoT Core: 250K messages/month free
-- API Gateway: 1M requests/month free
-
-**Estimated monthly cost for development:** $0-5 (well within $100 budget)
-
----
-
-## Testing the Setup
-
-### Test Backend API
+## Verify the API
 
 ```bash
-# Get all sensors (will be empty initially)
-curl http://localhost:5001/api/sensors
-
-# Health check
-curl http://localhost:5001/health
+curl -sS "http://localhost:5001/api/sensors"
+curl -sS "http://localhost:5001/api/risk-map"
 ```
 
-### Add Test Data (Optional)
+Use **`GET /api/sensors`** as the primary health check (there may be no dedicated `/health` route).
 
-You can manually add test data to DynamoDB Local using AWS CLI:
+## Optional test row (DynamoDB Local)
 
 ```bash
 aws dynamodb put-item \
@@ -97,45 +65,58 @@ aws dynamodb put-item \
   }'
 ```
 
----
+## Developer notes
 
-## Stopping Services
+### Lambda zip (deploy via Terraform)
+
+From **`forestshield-backend`**:
 
 ```bash
-# Stop backend
-cd forestshield-backend
-docker-compose down
+cd lambda-processing
+zip -r ../lambda-processing.zip . -x "*.pyc" "*__pycache__*"
 
-# Stop frontend
-# Press Ctrl+C in the terminal running npm start
+cd ../api-gateway-lambda
+zip -r ../api-gateway-lambda.zip . -x "*.pyc" "*__pycache__*"
 ```
 
----
+Copy the zips into **`forestshield-infrastructure/aws/`** if your Terraform expects them there, then:
 
-## Next Steps
+```bash
+cd forestshield-infrastructure/aws
+terraform init
+terraform plan
+# terraform apply   # when you intend to change AWS
+```
 
-1. **Connect Seth's Sensor**: Set up AWS IoT Core and connect the ESP32 device
-2. **Deploy to AWS**: Use Terraform to deploy infrastructure (when ready)
-3. **Add More Sensors**: Configure additional ESP32 devices
+### Key frontend files
 
----
+- `src/App.js` — routing / data polling  
+- `src/components/MapArea.js` — map, sensors, NASA FIRMS layer  
+- `src/services/api.js` — API base URL  
+
+### Key backend files
+
+- `lambda-processing/process_sensor_data.py` — IoT → DynamoDB enrichment  
+- `api-gateway-lambda/api_handler.py` — REST API  
+
+### Production checks
+
+See **[PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md)** and the monorepo scripts **`scripts/verify-production.sh`** / **`scripts/check-prod-health.sh`** (set `FORESTSHIELD_API_BASE` to your `…/prod/api` URL).
 
 ## Troubleshooting
 
-**Backend not starting?**
+| Issue | What to check |
+|-------|----------------|
+| Backend won’t start | `docker ps`, ports **5001 / 8000 / 1883**, `docker-compose logs` |
+| Frontend empty / errors | `.env` → `REACT_APP_API_URL=http://localhost:5001/api`, browser console |
+| No map data | DynamoDB empty until IoT or test `put-item` above |
 
-- Check Docker is running: `docker ps`
-- Check ports 5001, 8000, 1883 are not in use
-- View logs: `docker-compose logs -f`
+## Next steps
 
-**Frontend can't connect to API?**
+- **[API_DOCUMENTATION.md](./API_DOCUMENTATION.md)** — all routes and env vars  
+- **`forestshield-iot-firmware/docs/DEVICE_OPS.md`** — provision ESP32 → AWS IoT  
+- **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** — architecture and scope  
 
-- Verify backend is running: `curl http://localhost:5001/health`
-- Check `.env` file exists and has correct URL
-- Check browser console for CORS errors
+---
 
-**No data showing?**
-
-- Backend is running but DynamoDB is empty (normal for first run)
-- Add test data using AWS CLI (see above)
-- Or wait for sensor data once IoT device is connected
+**Last updated:** March 2026

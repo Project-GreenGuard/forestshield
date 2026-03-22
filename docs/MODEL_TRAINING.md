@@ -44,6 +44,8 @@ GradientBoostingRegressor(n_estimators=100, learning_rate=0.1, max_depth=5)
 
 ## Quick Start
 
+Training code lives in the **`forestshield-ai`** repo (not the Lambda repos). From that project root:
+
 ```bash
 # 1. Install
 pip install pandas numpy scikit-learn joblib
@@ -54,7 +56,7 @@ pip install pandas numpy scikit-learn joblib
 # 3. Train (~60s)
 python training/train.py
 
-# 4. Test
+# 4. Test (if inference/ exists in that repo)
 python inference/predict.py
 ```
 
