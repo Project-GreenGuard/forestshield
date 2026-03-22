@@ -547,7 +547,7 @@ Array of fire detection point objects containing latitude, longitude, brightness
 ## 16.0 Project Timeline
 
 - **Current Semester:** Core functionality implementation including IoT ingestion, external data integration, risk scoring, and dashboard visualization
-- **Update (March 2026):** **GCP Cloud Run** hosts the **`/predict`** inference used by the processing Lambda (Vertex is not required for the shipped path). **SNS alerting** and similar items remain **optional / descoped** unless the course mandates them — see **`WORK_LOG.md`** and the monorepo **`REMAINING_WORK.md`** for the live backlog.
+- **Update (March 2026):** **GCP Cloud Run** hosts the **`/predict`** inference used by the processing Lambda (Vertex is not required for the shipped path). **SNS alerting** and similar items remain **optional / descoped** unless the course mandates them — see the monorepo **`REMAINING_WORK.md`** for backlog and **§18** below for as-built scope.
 
 ## 17.0 Data Privacy
 
@@ -577,4 +577,4 @@ Authoritative for **as-built** behavior; use for demos and grading alignment.
 | **Scope (your team)** | **Out:** SNS, CloudFront, heavy GuardDuty/monitoring, evacuation product expansion. **In:** DLQ, Terraform vs reality, light alarms, reports, device ops, monorepo hygiene. |
 | **Production checks** | **`docs/PRODUCTION_VERIFICATION.md`**: scripted API + CORS + optional AWS (DLQ, IoT error action, alarms) + local build / Terraform validate. Monorepo scripts: **`verify-production.sh`**, **`check-prod-health.sh`**. |
 
-See **`docs/WORK_LOG.md`** for a narrative you can use in a **demonstration video**.
+For demos, use **§18** in this document and **[PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md)** for what to show as “running in prod.”

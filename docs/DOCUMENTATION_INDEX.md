@@ -5,12 +5,15 @@ Start with **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** for what the system 
 | Document | Purpose |
 |----------|---------|
 | [PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md) | Product scope, components, data flow, repository layout, March 2026 as-built addendum |
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture diagram and component details |
 | [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) | REST routes, env vars, DynamoDB fields, production verification commands |
 | [QUICK_START.md](./QUICK_START.md) | Run backend + frontend locally, test data, Lambda zip / Terraform pointers |
 | [PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md) | Prod smoke tests, how to run `verify-production.sh` / `check-prod-health.sh` |
 | [AI_PREDICTION_AND_TRAINING_SPEC.md](./AI_PREDICTION_AND_TRAINING_SPEC.md) | Cloud Run `/predict` JSON contract (processing Lambda) |
 | [MODEL_TRAINING.md](./MODEL_TRAINING.md) | Offline training methodology (gradient boosting / Ontario FIRMS–based dataset) |
-| [WORK_LOG.md](./WORK_LOG.md) | Shipped milestones and demo narrative |
+| [TEAM_SETUP_GUIDE.md](./TEAM_SETUP_GUIDE.md) | Org, repos, access, and team onboarding |
+| [VP_SOFTWARE_MODEL.md](./VP_SOFTWARE_MODEL.md) | VP / capstone software model (course artifact) |
+| [DOCUMENTATION_FORMATTING_GUIDE.md](./DOCUMENTATION_FORMATTING_GUIDE.md) | How we format and structure project documentation |
 
 **Repos** (GitHub org `Project-GreenGuard` unless noted):
 
@@ -22,4 +25,4 @@ Start with **[PROJECT_OVERVIEW.md](./PROJECT_OVERVIEW.md)** for what the system 
 | `forestshield-iot-firmware` | ESP32 firmware; see `docs/DEVICE_OPS.md` in that repo |
 | `forestshield-ai` (optional) | Offline ML training scripts; see [MODEL_TRAINING.md](./MODEL_TRAINING.md) |
 
-**Removed (March 2026 cleanup):** Overlapping or stale guides (`ARCHITECTURE`, `SETUP_GUIDE`, `DEVELOPMENT_GUIDE`, `TEAM_SETUP_GUIDE`, `STAGING_AND_CICD`, `DOCUMENTATION_FORMATTING_GUIDE`, `VP_SOFTWARE_MODEL`). Architecture and setup are consolidated into **PROJECT_OVERVIEW** and **QUICK_START**; CI/CD specifics live in **infrastructure workflows**.
+**Not in this folder (removed earlier as duplicate):** `SETUP_GUIDE`, `DEVELOPMENT_GUIDE`, `STAGING_AND_CICD` — use **QUICK_START**, per-repo READMEs, and **infrastructure** workflows instead.
