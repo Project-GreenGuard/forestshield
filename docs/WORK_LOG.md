@@ -13,7 +13,7 @@
 - **Terraform:** Extended **`dlq_and_monitoring.tf`** with API throttles + duration p95 alarms to match the above; run **`terraform plan`** before apply — live resources created via CLI may need **import** or a one-time reconcile.
 - **Frontend:** **Reports** page **Export CSV** (current sensor snapshot columns).
 - **Firmware:** **`docs/DEVICE_OPS.md`** (provisioning, buffers, ops); MQTT **`setBufferSize(512)`** for JSON headroom.
-- **Monorepo:** **`scripts/check-prod-health.sh`** polls **`/sensors`** and **`/nasa-fires`**; root **`README.md`** documents usage.
+- **Monorepo:** **`scripts/check-prod-health.sh`** polls **`/sensors`** and **`/nasa-fires`**; **`scripts/verify-production.sh`** runs a **full** prod + repo check (API schema, CORS on GET, optional AWS, `npm run build`, **`terraform validate`**). Documented in **`docs/PRODUCTION_VERIFICATION.md`**; root **`README.md`** updated.
 
 ---
 

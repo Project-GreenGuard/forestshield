@@ -61,3 +61,12 @@ Field names match DynamoDB / API responses:
 ## GitHub Actions (frontend build)
 
 `REACT_APP_API_URL` is set from repository secret **`PRODUCTION_API_URL`** (or staging equivalent). Update the secret and **re-run deploy** after changing the API base.
+
+## Production verification
+
+After deploy, run the automated suite from the monorepo root (see **[PRODUCTION_VERIFICATION.md](./PRODUCTION_VERIFICATION.md)**):
+
+- **`scripts/verify-production.sh`** — API JSON + CORS + optional AWS (Lambda DLQ, IoT error action, alarms) + local `npm run build` + `terraform validate`.
+- **`scripts/check-prod-health.sh`** — quick loop on `/sensors` and `/nasa-fires` only.
+
+Use **GET** (not HEAD) when manually checking CORS headers on API Gateway.

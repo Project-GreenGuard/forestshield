@@ -575,5 +575,6 @@ Authoritative for **as-built** behavior; use for demos and grading alignment.
 | **NASA on map** | React app: **`GET /api/nasa-fires`** every ~3 min; **NASA FIRMS** toggle + orange **`CircleMarker`** hotspots (API Lambda needs **`NASA_MAP_KEY`**). |
 | **Git** | Teammate PR #9 closed; **`forestshield-backend` `main`** (`Project-GreenGuard`) is the integration line. |
 | **Scope (your team)** | **Out:** SNS, CloudFront, heavy GuardDuty/monitoring, evacuation product expansion. **In:** DLQ, Terraform vs reality, light alarms, reports, device ops, monorepo hygiene. |
+| **Production checks** | **`docs/PRODUCTION_VERIFICATION.md`**: scripted API + CORS + optional AWS (DLQ, IoT error action, alarms) + local build / Terraform validate. Monorepo scripts: **`verify-production.sh`**, **`check-prod-health.sh`**. |
 
 See **`docs/WORK_LOG.md`** for a narrative you can use in a **demonstration video**.
